@@ -1,53 +1,51 @@
 package org.delcom.app.services;
 
-import java.util.UUID;
-
 import org.delcom.app.entities.User;
 import org.delcom.app.repositories.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
 
 @Service
 public class UserService {
-    private final UserRepository userRepository;
 
-    public UserService(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
+    @Autowired
+    private UserRepository userRepository;
 
-    @Transactional
-    public User createUser(String name, String email, String password) {
-        User user = new User(name, email, password);
-        return userRepository.save(user);
-    }
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
-    public User getUserByEmail(String email) {
-        return userRepository.findFirstByEmail(email).orElse(null);
+    // --- FIX: Method ini ditambahkan agar sesuai dengan BucketListController ---
+    public User findByUsername(String username) {
+        return userRepository.findByUsername(username);
     }
+    // -------------------------------------------------------------------------
 
     public User getUserById(UUID id) {
         return userRepository.findById(id).orElse(null);
     }
 
-    @Transactional
-    public User updateUser(UUID id, String name, String email) {
-        User user = userRepository.findById(id).orElse(null);
-        if (user == null) {
-            return null;
+    // Method ini bisa tetap ada jika controller lain menggunakannya
+    public User getUserByUsername(String username) {
+        return userRepository.findByUsername(username);
+    }
+
+    public User registerUser(User user) {
+        if (userRepository.findByUsername(user.getUsername()) != null) {
+            throw new RuntimeException("Username sudah digunakan!");
         }
-        user.setName(name);
-        user.setEmail(email);
+
+        if (user.getRole() == null || user.getRole().isEmpty()) {
+            user.setRole("ROLE_USER");
+        }
+
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
         return userRepository.save(user);
     }
 
-    @Transactional
-    public User updatePassword(UUID id, String newPassword) {
-        User user = userRepository.findById(id).orElse(null);
-        if (user == null) {
-            return null;
-        }
-        user.setPassword(newPassword);
-        return userRepository.save(user);
+    public boolean checkPassword(String rawPassword, String encodedPassword) {
+        return passwordEncoder.matches(rawPassword, encodedPassword);
     }
-
 }

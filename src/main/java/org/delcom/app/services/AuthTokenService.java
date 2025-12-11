@@ -1,32 +1,25 @@
 package org.delcom.app.services;
 
-import java.util.UUID;
-
 import org.delcom.app.entities.AuthToken;
 import org.delcom.app.repositories.AuthTokenRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
 
 @Service
 public class AuthTokenService {
-    private final AuthTokenRepository authTokenRepository;
 
-    public AuthTokenService(AuthTokenRepository authTokenRepository) {
-        this.authTokenRepository = authTokenRepository;
-    }
+    @Autowired
+    private AuthTokenRepository authTokenRepository;
 
-    @Transactional(readOnly = true)
+    // Method yang sudah ada (untuk interceptor)
     public AuthToken findUserToken(UUID userId, String token) {
-        return authTokenRepository.findUserToken(userId, token);
+        return authTokenRepository.findByUserIdAndToken(userId, token).orElse(null);
     }
 
-    @Transactional
-    public AuthToken createAuthToken(AuthToken authToken) {
-        return authTokenRepository.save(authToken);
-    }
-
-    @Transactional
-    public void deleteAuthToken(UUID userId) {
-        authTokenRepository.deleteByUserId(userId);
+    // --- PERBAIKAN: Tambahkan method createToken ---
+    public void createToken(AuthToken authToken) {
+        authTokenRepository.save(authToken);
     }
 }

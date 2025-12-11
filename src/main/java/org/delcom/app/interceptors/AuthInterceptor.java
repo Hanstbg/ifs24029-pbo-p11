@@ -1,17 +1,15 @@
 package org.delcom.app.interceptors;
 
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.delcom.app.configs.AuthContext;
-import org.delcom.app.entities.AuthToken;
 import org.delcom.app.entities.User;
-import org.delcom.app.services.AuthTokenService;
 import org.delcom.app.services.UserService;
 import org.delcom.app.utils.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
-
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 
 import java.util.UUID;
 
@@ -19,87 +17,55 @@ import java.util.UUID;
 public class AuthInterceptor implements HandlerInterceptor {
 
     @Autowired
-    protected AuthContext authContext;
+    private AuthContext authContext;
 
     @Autowired
-    protected AuthTokenService authTokenService;
-
-    @Autowired
-    protected UserService userService;
+    private UserService userService;
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
-            throws Exception {
-        // Skip auth untuk endpoint public
-        if (isPublicEndpoint(request)) {
-            return true;
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        
+        // 1. CEK SESSION (Cara Paling Cepat)
+        // Jika user sudah login barusan, session pasti ada.
+        if (authContext.getAuthUser() != null) {
+            return true; // Lanjut, boleh masuk
         }
 
-        // Ambil bearer token dari header
-        String rawAuthToken = request.getHeader("Authorization");
-        String token = extractToken(rawAuthToken);
-
-        // Validasi token
-        if (token == null || token.isEmpty()) {
-            sendErrorResponse(response, 401, "Token autentikasi tidak ditemukan");
-            return false;
+        // 2. CEK COOKIE (Auto Login / Remember Me)
+        // Jika session kosong (misal browser baru dibuka ulang), kita cek apakah ada Cookie "AUTH_TOKEN"
+        String token = null;
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("AUTH_TOKEN".equals(cookie.getName())) {
+                    token = cookie.getValue();
+                    break;
+                }
+            }
         }
 
-        // Validasi format token JWT
-        if (!JwtUtil.validateToken(token, true)) {
-            sendErrorResponse(response, 401, "Token autentikasi tidak valid");
-            return false;
+        // Jika Token Ditemukan, kita validasi
+        if (token != null) {
+            try {
+                // Ambil ID User dari Token
+                UUID userId = JwtUtil.getUserIdFromToken(token);
+                
+                // Ambil Data User lengkap dari Database
+                User user = userService.getUserById(userId);
+
+                if (user != null) {
+                    // PENTING: Masukkan kembali user ke Session
+                    authContext.setAuthUser(user);
+                    return true; // Token valid, user dipulihkan, boleh masuk
+                }
+            } catch (Exception e) {
+                // Token tidak valid atau expired, abaikan saja
+                System.out.println("Token invalid: " + e.getMessage());
+            }
         }
 
-        // Ekstrak userId dari token
-        UUID userId = JwtUtil.extractUserId(token);
-        if (userId == null) {
-            sendErrorResponse(response, 401, "Format token autentikasi tidak valid");
-            return false;
-        }
-
-        // Cari token di database
-        AuthToken authToken = authTokenService.findUserToken(userId, token);
-        if (authToken == null) {
-            sendErrorResponse(response, 401, "Token autentikasi sudah expired");
-            return false;
-        }
-
-        // Ambil data user
-        User authUser = userService.getUserById(authToken.getUserId());
-        if (authUser == null) {
-            sendErrorResponse(response, 404, "User tidak ditemukan");
-            return false;
-        }
-
-        // Set user ke auth context
-        authContext.setAuthUser(authUser);
-        return true;
-    }
-
-    private String extractToken(String rawAuthToken) {
-        if (rawAuthToken != null && rawAuthToken.startsWith("Bearer ")) {
-            return rawAuthToken.substring(7); // hapus "Bearer "
-        }
-        return null;
-    }
-
-    private boolean isPublicEndpoint(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        // String method = request.getMethod();
-
-        // Endpoint public yang tidak perlu auth
-        return path.startsWith("/api/auth") || path.equals("/error");
-    }
-
-    private void sendErrorResponse(HttpServletResponse response, int status, String message) throws Exception {
-        response.setStatus(status);
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-
-        String jsonResponse = String.format(
-                "{\"status\":\"fail\",\"message\":\"%s\",\"data\":null}",
-                message);
-        response.getWriter().write(jsonResponse);
+        // 3. JIKA GAGAL SEMUA (Session kosong, Cookie kosong/invalid)
+        // Lempar ke halaman login
+        response.sendRedirect("/auth/login");
+        return false; // Stop, jangan lanjut ke Controller
     }
 }

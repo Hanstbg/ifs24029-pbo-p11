@@ -1,23 +1,28 @@
 package org.delcom.app.configs;
 
+import jakarta.servlet.http.HttpSession;
 import org.delcom.app.entities.User;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.web.context.annotation.RequestScope;
 
 @Component
-@RequestScope
 public class AuthContext {
-    private User authUser;
 
+    @Autowired
+    private HttpSession session;
+
+    // AMBIL DARI SESSION (Agar data bertahan saat pindah halaman)
     public User getAuthUser() {
-        return authUser;
+        return (User) session.getAttribute("authUser");
     }
 
-    public void setAuthUser(User authUser) {
-        this.authUser = authUser;
+    // SIMPAN KE SESSION
+    public void setAuthUser(User user) {
+        session.setAttribute("authUser", user);
     }
 
+    // CEK APAKAH LOGIN
     public boolean isAuthenticated() {
-        return authUser != null;
+        return getAuthUser() != null;
     }
 }

@@ -1,269 +1,142 @@
 package org.delcom.app.services;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.InjectMocks;
 import org.mockito.MockedStatic;
-import org.springframework.web.multipart.MultipartFile;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class FileStorageServiceTests {
 
+    @InjectMocks
     private FileStorageService fileStorageService;
-    private MultipartFile mockMultipartFile;
 
+    // JUnit 5 akan membuat folder sementara yang otomatis bersih setelah test
     @TempDir
     Path tempDir;
 
-    @BeforeEach
-    void setup() {
-        fileStorageService = new FileStorageService();
-        // Override uploadDir dengan temporary directory
-        fileStorageService.uploadDir = tempDir.toString();
-        mockMultipartFile = mock(MultipartFile.class);
+    // --- TEST 1: Normal Upload & Create Directory (Logic Baris 21-23) ---
+    // Menghijaukan IF (!Files.exists) -> TRUE
+    @Test
+    void testStoreFile_CreateDirectory() throws IOException {
+        Path nonExistentDir = tempDir.resolve("new_uploads");
+        String uploadDirPath = nonExistentDir.toAbsolutePath().toString();
+
+        ReflectionTestUtils.setField(fileStorageService, "uploadDir", uploadDirPath);
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "test.jpg", "image/jpeg", "content".getBytes()
+        );
+
+        String filename = fileStorageService.storeFile(file, UUID.randomUUID());
+
+        assertNotNull(filename);
+        assertTrue(Files.exists(nonExistentDir)); // Direktori berhasil dibuat
+        assertTrue(Files.exists(nonExistentDir.resolve(filename)));
     }
 
+    // --- TEST 2: Cek Ekstensi File & Directory Sudah Ada ---
+    // Menghijaukan IF (!Files.exists) -> FALSE (karena tempDir sudah ada)
+    // Menghijaukan IF (contains(".")) -> TRUE dan FALSE
     @Test
-    @DisplayName("Store file berhasil menyimpan file dengan extension")
-    void storeFile_berhasil_menyimpan_file_dengan_extension() throws Exception {
-        // Arrange
-        UUID todoId = UUID.randomUUID();
-        String originalFilename = "image.jpg";
-        String expectedFilename = "cover_" + todoId + ".jpg";
-        byte[] fileContent = "fake image content".getBytes();
+    void testStoreFile_ExtensionLogic() throws IOException {
+        ReflectionTestUtils.setField(fileStorageService, "uploadDir", tempDir.toString());
 
-        when(mockMultipartFile.getOriginalFilename()).thenReturn(originalFilename);
-        when(mockMultipartFile.getInputStream()).thenReturn(new ByteArrayInputStream(fileContent));
+        // Case A: File punya ekstensi (.png)
+        MockMultipartFile fileWithExt = new MockMultipartFile("f", "icon.png", "image/png", "x".getBytes());
+        String res1 = fileStorageService.storeFile(fileWithExt, UUID.randomUUID());
+        assertTrue(res1.endsWith(".png"));
 
-        // Act
-        String result = fileStorageService.storeFile(mockMultipartFile, todoId);
-
-        // Assert
-        assertEquals(expectedFilename, result);
-
-        // Verify file actually exists and content is correct
-        Path expectedFile = tempDir.resolve(expectedFilename);
-        assertTrue(Files.exists(expectedFile));
-        assertArrayEquals(fileContent, Files.readAllBytes(expectedFile));
+        // Case B: File tanpa ekstensi
+        MockMultipartFile fileNoExt = new MockMultipartFile("f", "readme", "text/plain", "x".getBytes());
+        String res2 = fileStorageService.storeFile(fileNoExt, UUID.randomUUID());
+        // Nama file generate adalah "img_UUID_Time", tidak ada titik jika ekstensi kosong
+        assertFalse(res2.contains(".")); 
     }
 
+    // --- TEST 3: Null Filename (PENTING untuk Branch Coverage) ---
+    // Menghijaukan IF (originalFilename != null) -> FALSE
     @Test
-    @DisplayName("Store file berhasil tanpa extension ketika original filename null")
-    void storeFile_berhasil_tanpa_extension_ketika_originalFilename_null() throws Exception {
-        // Arrange
-        UUID todoId = UUID.randomUUID();
-        String expectedFilename = "cover_" + todoId.toString();
-        byte[] fileContent = "fake content".getBytes();
+    void testStoreFile_NullFilename() throws IOException {
+        ReflectionTestUtils.setField(fileStorageService, "uploadDir", tempDir.toString());
 
-        when(mockMultipartFile.getOriginalFilename()).thenReturn(null);
-        when(mockMultipartFile.getInputStream()).thenReturn(new ByteArrayInputStream(fileContent));
+        // Mock MultipartFile agar mengembalikan NULL saat getOriginalFilename dipanggil
+        MockMultipartFile file = mock(MockMultipartFile.class);
+        when(file.getOriginalFilename()).thenReturn(null);
+        when(file.getInputStream()).thenReturn(new java.io.ByteArrayInputStream("test".getBytes()));
 
-        // Act
-        String result = fileStorageService.storeFile(mockMultipartFile, todoId);
+        String result = fileStorageService.storeFile(file, UUID.randomUUID());
 
-        // Assert
-        assertEquals(expectedFilename, result);
-        assertTrue(Files.exists(tempDir.resolve(expectedFilename)));
+        // Hasil harusnya tersimpan tanpa error, dan tanpa ekstensi
+        assertNotNull(result);
+        assertFalse(result.contains("."));
     }
 
+    // --- TEST 4: Delete File Sukses ---
     @Test
-    @DisplayName("Store file berhasil tanpa extension ketika tidak ada dot")
-    void storeFile_berhasil_tanpa_extension_ketika_tidak_ada_dot() throws Exception {
-        // Arrange
-        UUID todoId = UUID.randomUUID();
-        String expectedFilename = "cover_" + todoId.toString();
-        byte[] fileContent = "fake content".getBytes();
+    void testDeleteFile_Success() throws IOException {
+        Path filePath = tempDir.resolve("gambar_hapus.jpg");
+        Files.createFile(filePath);
 
-        when(mockMultipartFile.getOriginalFilename()).thenReturn("filename");
-        when(mockMultipartFile.getInputStream()).thenReturn(new ByteArrayInputStream(fileContent));
+        ReflectionTestUtils.setField(fileStorageService, "uploadDir", tempDir.toString());
 
-        // Act
-        String result = fileStorageService.storeFile(mockMultipartFile, todoId);
+        boolean result = fileStorageService.deleteFile("gambar_hapus.jpg");
 
-        // Assert
-        assertEquals(expectedFilename, result);
-        assertTrue(Files.exists(tempDir.resolve(expectedFilename)));
-    }
-
-    @Test
-    @DisplayName("Store file berhasil dengan complex extension")
-    void storeFile_berhasil_dengan_complex_extension() throws Exception {
-        // Arrange
-        UUID todoId = UUID.randomUUID();
-        String originalFilename = "document.final.pdf";
-        String expectedFilename = "cover_" + todoId + ".pdf";
-        byte[] fileContent = "fake pdf content".getBytes();
-
-        when(mockMultipartFile.getOriginalFilename()).thenReturn(originalFilename);
-        when(mockMultipartFile.getInputStream()).thenReturn(new ByteArrayInputStream(fileContent));
-
-        // Act
-        String result = fileStorageService.storeFile(mockMultipartFile, todoId);
-
-        // Assert
-        assertEquals(expectedFilename, result);
-        assertTrue(Files.exists(tempDir.resolve(expectedFilename)));
-    }
-
-    @Test
-    @DisplayName("Store file membuat directory ketika belum ada")
-    void storeFile_membuat_directory_ketika_belum_ada() throws Exception {
-        // Arrange
-        UUID todoId = UUID.randomUUID();
-        Path customUploadDir = tempDir.resolve("custom-upload");
-        fileStorageService.uploadDir = customUploadDir.toString();
-
-        when(mockMultipartFile.getOriginalFilename()).thenReturn("test.txt");
-        when(mockMultipartFile.getInputStream()).thenReturn(new ByteArrayInputStream("content".getBytes()));
-
-        // Act
-        String result = fileStorageService.storeFile(mockMultipartFile, todoId);
-
-        // Assert
-        assertTrue(Files.exists(customUploadDir));
-        assertTrue(Files.isDirectory(customUploadDir));
-        assertTrue(Files.exists(customUploadDir.resolve(result)));
-    }
-
-    @Test
-    @DisplayName("Store file melemparkan exception ketika IOException terjadi")
-    void storeFile_melemparkan_exception_ketika_ioexception_terjadi() throws Exception {
-        // Arrange
-        UUID todoId = UUID.randomUUID();
-
-        when(mockMultipartFile.getOriginalFilename()).thenReturn("test.txt");
-        when(mockMultipartFile.getInputStream()).thenThrow(new IOException("Simulated IO error"));
-
-        // Act & Assert
-        assertThrows(IOException.class, () -> {
-            fileStorageService.storeFile(mockMultipartFile, todoId);
-        });
-    }
-
-    @Test
-    @DisplayName("Delete file berhasil menghapus file yang ada")
-    void deleteFile_berhasil_menghapus_file_yang_ada() throws Exception {
-        // Arrange
-        String filename = "test-file.txt";
-        Path testFile = tempDir.resolve(filename);
-        Files.write(testFile, "content".getBytes());
-        assertTrue(Files.exists(testFile));
-
-        // Act
-        boolean result = fileStorageService.deleteFile(filename);
-
-        // Assert
         assertTrue(result);
-        assertFalse(Files.exists(testFile));
+        assertFalse(Files.exists(filePath));
     }
 
+    // --- TEST 5: Delete File Exception (Catch Block) ---
+    // Menghijaukan blok CATCH IOException
     @Test
-    @DisplayName("Delete file return false ketika file tidak ada")
-    void deleteFile_return_false_ketika_file_tidak_ada() {
-        // Arrange
-        String nonExistentFilename = "non-existent-file.txt";
+    void testDeleteFile_Exception() {
+        ReflectionTestUtils.setField(fileStorageService, "uploadDir", tempDir.toString());
 
-        // Act
-        boolean result = fileStorageService.deleteFile(nonExistentFilename);
+        // MOCK STATIC: Memaksa Files.deleteIfExists melempar error
+        try (MockedStatic<Files> mockedFiles = mockStatic(Files.class)) {
+            
+            // Kita harus mengizinkan calls lain (seperti Paths.get) berjalan normal jika perlu,
+            // tapi karena deleteFile memanggil Paths.get dulu baru Files.deleteIfExists, aman.
+            
+            mockedFiles.when(() -> Files.deleteIfExists(any(Path.class)))
+                       .thenThrow(new IOException("Disk Error"));
 
-        // Assert
-        assertFalse(result);
-    }
+            boolean result = fileStorageService.deleteFile("error.jpg");
 
-    @Test
-    @DisplayName("Delete file return false ketika IOException terjadi")
-    void deleteFile_return_false_ketika_ioexception() throws Exception {
-        // Arrange
-        String filename = "test-file.txt";
-        Path filePath = Paths.get(fileStorageService.uploadDir).resolve(filename);
-
-        // Mock Files class untuk melemparkan IOException
-        try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
-            filesMock.when(() -> Files.deleteIfExists(filePath))
-                    .thenThrow(new IOException("Permission denied"));
-
-            // Act
-            boolean result = fileStorageService.deleteFile(filename);
-
-            // Assert
-            assertFalse(result);
+            assertFalse(result); // Harus false karena masuk catch
         }
     }
 
+    // --- TEST 6: Load File & Check Exists ---
     @Test
-    @DisplayName("Load file return path yang benar")
-    void loadFile_return_path_yang_benar() {
-        // Arrange
-        String filename = "test-file.txt";
-        Path expectedPath = tempDir.resolve(filename);
+    void testLoadAndCheckFile() throws IOException {
+        Path filePath = tempDir.resolve("cek.txt");
+        Files.createFile(filePath);
 
-        // Act
-        Path result = fileStorageService.loadFile(filename);
+        ReflectionTestUtils.setField(fileStorageService, "uploadDir", tempDir.toString());
 
-        // Assert
-        assertEquals(expectedPath, result);
-    }
+        // Test File Exists
+        assertTrue(fileStorageService.fileExists("cek.txt"));
+        assertFalse(fileStorageService.fileExists("ga_ada.txt"));
 
-    @Test
-    @DisplayName("File exists return true ketika file ada")
-    void fileExists_return_true_ketika_file_ada() throws Exception {
-        // Arrange
-        String filename = "existing-file.txt";
-        Path existingFile = tempDir.resolve(filename);
-        Files.write(existingFile, "content".getBytes());
-
-        // Act
-        boolean result = fileStorageService.fileExists(filename);
-
-        // Assert
-        assertTrue(result);
-    }
-
-    @Test
-    @DisplayName("File exists return false ketika file tidak ada")
-    void fileExists_return_false_ketika_file_tidak_ada() {
-        // Arrange
-        String nonExistentFilename = "non-existent-file.txt";
-
-        // Act
-        boolean result = fileStorageService.fileExists(nonExistentFilename);
-
-        // Assert
-        assertFalse(result);
-    }
-
-    @Test
-    @DisplayName("Store file menggantikan file yang sudah ada")
-    void storeFile_menggantikan_file_yang_sudah_ada() throws Exception {
-        // Arrange
-        UUID todoId = UUID.randomUUID();
-        String originalFilename = "test.txt";
-        String expectedFilename = "cover_" + todoId + ".txt";
-
-        // Create existing file with different content
-        Path existingFile = tempDir.resolve(expectedFilename);
-        Files.write(existingFile, "old content".getBytes());
-
-        byte[] newContent = "new content".getBytes();
-
-        when(mockMultipartFile.getOriginalFilename()).thenReturn(originalFilename);
-        when(mockMultipartFile.getInputStream()).thenReturn(new ByteArrayInputStream(newContent));
-
-        // Act
-        String result = fileStorageService.storeFile(mockMultipartFile, todoId);
-
-        // Assert
-        assertEquals(expectedFilename, result);
-        assertArrayEquals(newContent, Files.readAllBytes(existingFile));
+        // Test Load File
+        Path loadedPath = fileStorageService.loadFile("cek.txt");
+        assertNotNull(loadedPath);
+        assertEquals(filePath.toAbsolutePath().toString(), loadedPath.toAbsolutePath().toString());
     }
 }

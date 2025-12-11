@@ -1,57 +1,114 @@
 package org.delcom.app.configs;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
+import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
+import org.springframework.security.config.annotation.web.configurers.FormLoginConfigurer;
+import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.security.web.DefaultSecurityFilterChain;
+import org.springframework.security.web.SecurityFilterChain;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-public class SecurityConfigTest {
+@ExtendWith(MockitoExtension.class)
+class SecurityConfigTest {
 
-        @Autowired
-        private MockMvc mockMvc;
+    @InjectMocks
+    private SecurityConfig securityConfig;
 
-        @Autowired
-        private PasswordEncoder passwordEncoder;
+    @Mock
+    private HttpSecurity http;
 
-        @Test
-        void permitAll_forAuthUrls() throws Exception {
-                mockMvc.perform(get("/auth/login"))
-                                .andExpect(status().isOk());
-        }
+    @Test
+    void testPasswordEncoder() {
+        PasswordEncoder encoder = securityConfig.passwordEncoder();
+        assertNotNull(encoder);
+        assertTrue(encoder instanceof BCryptPasswordEncoder);
+    }
 
-        @Test
-        void permitAll_forApiUrls() throws Exception {
-                mockMvc.perform(get("/api/test"))
-                                .andExpect(status().is4xxClientError());
-        }
+    @Test
+    @SuppressWarnings("unchecked")
+    void testSecurityFilterChain() throws Exception {
+        // 1. Mock chaining HttpSecurity
+        when(http.csrf(any())).thenReturn(http);
+        when(http.authorizeHttpRequests(any())).thenReturn(http);
+        when(http.formLogin(any())).thenReturn(http);
+        when(http.logout(any())).thenReturn(http);
+        when(http.build()).thenReturn(mock(DefaultSecurityFilterChain.class));
 
-        @Test
-        void redirect_toLogin_ifNotAuthenticated() throws Exception {
-                mockMvc.perform(get("/dashboard"))
-                                .andExpect(status().is3xxRedirection())
-                                .andExpect(redirectedUrl("/auth/login"));
-        }
+        // 2. Mock CSRF Lambda
+        when(http.csrf(any(Customizer.class))).thenAnswer(invocation -> {
+            Customizer<CsrfConfigurer<HttpSecurity>> customizer = invocation.getArgument(0);
+            CsrfConfigurer<HttpSecurity> csrfConfig = mock(CsrfConfigurer.class);
+            customizer.customize(csrfConfig);
+            verify(csrfConfig).disable();
+            return http;
+        });
 
-        @Test
-        void accessDenied_redirectsToLogout() throws Exception {
-                mockMvc.perform(get("/admin")
-                                .with(user("testuser").roles("USER"))) // user login tapi bukan ADMIN
-                                .andExpect(status().is4xxClientError());
-        }
+        // 3. Mock FormLogin Lambda
+        when(http.formLogin(any(Customizer.class))).thenAnswer(invocation -> {
+            Customizer<FormLoginConfigurer<HttpSecurity>> customizer = invocation.getArgument(0);
+            FormLoginConfigurer<HttpSecurity> formLogin = mock(FormLoginConfigurer.class);
+            customizer.customize(formLogin);
+            verify(formLogin).disable();
+            return http;
+        });
 
-        @Test
-        void passwordEncoder_shouldBeBCrypt() {
-                assertThat(passwordEncoder).isNotNull();
-                assertThat(passwordEncoder.encode("test"))
-                                .isNotBlank();
-        }
+        // 4. Mock Logout Lambda
+        when(http.logout(any(Customizer.class))).thenAnswer(invocation -> {
+            Customizer<LogoutConfigurer<HttpSecurity>> customizer = invocation.getArgument(0);
+            LogoutConfigurer<HttpSecurity> logout = mock(LogoutConfigurer.class);
+            customizer.customize(logout);
+            verify(logout).disable();
+            return http;
+        });
+
+        // 5. Mock AuthorizeHttpRequests Lambda (PERBAIKAN DI SINI)
+        when(http.authorizeHttpRequests(any(Customizer.class))).thenAnswer(invocation -> {
+            Customizer<AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry> customizer = invocation.getArgument(0);
+            
+            // Mock Registry
+            var registry = mock(AuthorizeHttpRequestsConfigurer.AuthorizationManagerRequestMatcherRegistry.class);
+            
+            // Mock AuthorizedUrl (Objek antara sebelum permitAll)
+            var authorizedUrl = mock(AuthorizeHttpRequestsConfigurer.AuthorizedUrl.class);
+            
+            // --- BAGIAN PENTING YANG MEMPERBAIKI NPE ---
+            // Agar chaining .permitAll().requestMatchers() bisa jalan,
+            // permitAll() harus mengembalikan registry kembali.
+            when(authorizedUrl.permitAll()).thenReturn(registry);
+            // -------------------------------------------
+
+            // Setup registry behavior
+            when(registry.requestMatchers(any(String[].class))).thenReturn(authorizedUrl);
+            when(registry.anyRequest()).thenReturn(authorizedUrl); // Untuk .anyRequest().permitAll()
+
+            // Jalankan kode di dalam lambda SecurityConfig
+            customizer.customize(registry);
+
+            // Verifikasi
+            verify(registry, atLeastOnce()).requestMatchers(any(String[].class));
+            verify(registry).anyRequest();
+            verify(authorizedUrl, atLeastOnce()).permitAll();
+            
+            return http;
+        });
+
+        // --- Execute ---
+        SecurityFilterChain chain = securityConfig.securityFilterChain(http);
+
+        // --- Verify ---
+        assertNotNull(chain);
+        verify(http).build();
+    }
 }

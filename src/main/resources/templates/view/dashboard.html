@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>WorldPass - Midnight Edition</title>
+    <!-- Bootstrap 5 & FontAwesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* THEME: Midnight Azure (Dark Premium) */
+            --bg-deep: #020617;      
+            --bg-hover: rgba(30, 41, 59, 0.8); 
+            
+            --text-main: #f8fafc;    
+            --text-muted: #94a3b8;   
+            
+            --accent-blue: #38bdf8;  
+            --accent-gold: #fbbf24;  
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-deep);
+            background-image: radial-gradient(circle at 50% 0%, #1e293b 0%, #020617 60%);
+            background-attachment: fixed;
+            background-size: cover;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Particles Container */
+        #particles-js {
+            position: fixed; width: 100%; height: 100%; top: 0; left: 0;
+            z-index: -1; pointer-events: none;
+        }
+        
+        h1, h2, h3, h4, h5, .serif-font {
+            font-family: 'Playfair Display', serif;
+            letter-spacing: 0.02em;
+        }
+        
+        /* Navbar (Glassmorphism) */
+        .top-nav {
+            background: rgba(2, 6, 23, 0.7);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 20px 0;
+            position: sticky; top: 0; z-index: 1000;
+        }
+        
+        /* --- GLASSMORPHISM UI (Kartu Lain Tetap Kaca) --- */
+        /* Note: .clock-seamless TIDAK dimasukkan kesini agar transparan total */
+        .stat-card, .trip-card, .founder-card, .bucket-widget, .weather-card, .timeline-content-card, .dropdown-menu-dark-custom {
+            background: rgba(15, 23, 42, 0.65) !important;
+            backdrop-filter: blur(12px) !important;
+            -webkit-backdrop-filter: blur(12px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
+        }
+
+        /* --- FITUR JAM MENYATU (SEAMLESS) --- */
+        .clock-seamless {
+            /* Transparan Total */
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 10px 0;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .clock-greeting {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 4px; /* Letter spacing lebih lebar agar elegan */
+            color: var(--accent-gold);
+            margin-bottom: 0px;
+            opacity: 0.9;
+            font-weight: 600;
+        }
+
+        .clock-time {
+            font-family: 'Playfair Display', serif;
+            font-size: 5rem; /* Diperbesar agar standout tanpa box */
+            font-weight: 700;
+            line-height: 1;
+            /* Efek Text Gradient Mewah */
+            background: linear-gradient(180deg, #ffffff 20%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 5px;
+            /* Drop shadow pada teks agar terbaca jelas di atas partikel */
+            filter: drop-shadow(0 5px 15px rgba(0,0,0,0.5)); 
+        }
+
+        .clock-date {
+            font-size: 1.1rem;
+            color: var(--accent-blue);
+            font-weight: 300;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .world-time-strip {
+            display: flex;
+            justify-content: space-between;
+            /* Garis pemisah yang sangat halus dan memudar di ujung (Gradient Border) */
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 20px;
+            width: 90%;
+            margin: 0 auto; /* Tengah */
+        }
+        .world-city {
+            text-align: center;
+            width: 33%;
+        }
+        .world-city-name {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 1.5px;
+            display: block;
+            margin-bottom: 3px;
+        }
+        .world-city-time {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #e2e8f0;
+            font-family: 'Playfair Display', serif;
+        }
+
+        /* Statistic Card Specifics */
+        .stat-card {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(23, 37, 84, 0.8) 100%) !important;
+            color: white; border-radius: 16px; padding: 35px 30px; position: relative; overflow: hidden;
+        }
+        .stat-card .icon-bg {
+            position: absolute; right: -15px; bottom: -25px; font-size: 8rem;
+            color: var(--accent-blue); opacity: 0.1; transform: rotate(-10deg);
+        }
+        .stat-number { 
+            color: var(--accent-blue); text-shadow: 0 0 20px rgba(56, 189, 248, 0.5);
+        }
+
+        /* Main Content */
+        .main-content { padding-top: 50px; flex: 1; }
+        
+        /* GRID VIEW: Trip Cards */
+        .trip-card {
+            border-radius: 16px; transition: all 0.4s ease; height: 100%; overflow: hidden;
+        }
+        .trip-card:hover {
+            transform: translateY(-8px);
+            background: rgba(30, 41, 59, 0.8) !important;
+            border-color: rgba(56, 189, 248, 0.3) !important;
+            box-shadow: 0 20px 40px -12px rgba(56, 189, 248, 0.15) !important;
+        }
+        .trip-img-wrapper { height: 240px; overflow: hidden; position: relative; }
+        .trip-img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.8s ease; opacity: 0.9; }
+        .trip-card:hover .trip-img { transform: scale(1.1); opacity: 1; }
+        
+        .card-category {
+            position: absolute; bottom: 15px; left: 15px;
+            background: rgba(2, 6, 23, 0.9); color: var(--accent-blue); 
+            border: 1px solid rgba(56, 189, 248, 0.3); padding: 6px 14px; border-radius: 4px;
+            font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700;
+        }
+        .card-actions { 
+            position: absolute; top: 15px; right: 15px; opacity: 0; transition: opacity 0.3s; 
+            background: var(--bg-deep); padding: 8px; border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .trip-card:hover .card-actions { opacity: 1; }
+
+        /* Timeline Styles */
+        .timeline-section { position: relative; padding: 20px 0; display: none; }
+        .timeline-section::before {
+            content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px var(--accent-blue); transform: translateX(-50%);
+        }
+        .timeline-row { display: flex; justify-content: space-between; margin-bottom: 60px; position: relative; }
+        .timeline-dot {
+            position: absolute; left: 50%; top: 20px; width: 20px; height: 20px; border-radius: 50%;
+            background: var(--bg-deep); border: 2px solid var(--accent-blue);
+            transform: translateX(-50%); z-index: 2; box-shadow: 0 0 15px rgba(56, 189, 248, 0.8); transition: 0.3s;
+        }
+        .timeline-row:hover .timeline-dot { background: var(--accent-blue); transform: translateX(-50%) scale(1.3); }
+        .timeline-content-card {
+            width: 45%; border-radius: 16px; padding: 0; overflow: hidden; position: relative; transition: 0.3s;
+        }
+        .timeline-content-card:hover { transform: translateY(-5px); border-color: var(--accent-blue) !important; }
+        .timeline-row.left .timeline-content-card { margin-right: auto; }
+        .timeline-row.right .timeline-content-card { margin-left: auto; }
+        .timeline-date {
+            position: absolute; top: 20px; width: 45%;
+            font-family: 'Playfair Display', serif; font-size: 1.5rem; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 2px;
+        }
+        .timeline-row.left .timeline-date { right: 0; text-align: left; padding-left: 30px; }
+        .timeline-row.right .timeline-date { left: 0; text-align: right; padding-right: 30px; }
+        @media (max-width: 768px) {
+            .timeline-section::before { left: 20px; }
+            .timeline-dot { left: 20px; }
+            .timeline-content-card { width: 85%; margin-left: auto !important; margin-right: 0; }
+            .timeline-date { position: static; text-align: left !important; width: 100%; margin-left: 50px; margin-bottom: 10px; font-size: 1rem; }
+        }
+
+        .view-btn {
+            background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted);
+            padding: 8px 15px; border-radius: 8px; transition: 0.3s;
+        }
+        .view-btn.active, .view-btn:hover { background: rgba(56, 189, 248, 0.2); color: var(--accent-blue); border-color: var(--accent-blue); }
+
+        /* Widgets */
+        .founder-card { border-radius: 16px; padding: 40px 30px; text-align: center; }
+        .dev-avatar { width: 85px; height: 85px; border-radius: 50%; background: linear-gradient(135deg, #38bdf8, #3b82f6); color: #fff; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 28px; font-family: 'Playfair Display', serif; border: 4px solid rgba(15, 23, 42, 0.5); box-shadow: 0 0 20px rgba(56, 189, 248, 0.4); }
+
+        .weather-card { 
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.85) 0%, rgba(147, 51, 234, 0.85) 100%) !important; 
+            color: white; border-radius: 16px; padding: 25px; position: relative; overflow: hidden; transition: transform 0.3s ease; 
+        }
+        .weather-card:hover { transform: translateY(-5px); }
+        .weather-temp { font-size: 3.5rem; font-weight: 700; line-height: 1; font-family: 'Playfair Display', serif; text-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .weather-icon-large { font-size: 4rem; position: absolute; right: 20px; top: 50%; transform: translateY(-50%); opacity: 0.2; color: #fff; }
+        .weather-detail-item { background: rgba(255,255,255,0.1); padding: 8px 12px; border-radius: 10px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px; backdrop-filter: blur(4px); }
+
+        .bucket-widget { border-radius: 16px; padding: 25px; }
+        .bucket-item-row { transition: 0.3s; padding: 8px; border-radius: 8px; border-bottom: 1px solid rgba(255,255,255,0.02); }
+        .bucket-item-row:hover { background: rgba(56, 189, 248, 0.05); }
+        .bucket-item-row:last-child { border-bottom: none; }
+        .check-icon { font-size: 1.1rem; }
+
+        .app-footer { text-align: center; padding: 40px; margin-top: 80px; color: var(--text-muted); font-size: 0.8rem; background: rgba(15, 23, 42, 0.5); border-top: 1px solid rgba(255,255,255,0.05); backdrop-filter: blur(5px); }
+        
+        .btn-fab { position: fixed; bottom: 50px; right: 50px; width: 65px; height: 65px; border-radius: 50%; background: var(--accent-blue); color: var(--bg-deep); border: none; font-size: 24px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 30px rgba(56, 189, 248, 0.4); transition: all 0.3s ease; z-index: 999; }
+        .btn-fab:hover { transform: scale(1.1) rotate(90deg); background: #fff; color: var(--accent-blue); box-shadow: 0 0 50px rgba(255, 255, 255, 0.6); }
+        
+        .search-input { border: none; border-bottom: 1px solid #334155; background: transparent; min-width: 280px; padding: 10px 0; font-family: 'Playfair Display', serif; font-size: 1.1rem; color: var(--text-main); }
+        .search-input:focus { border-color: var(--accent-blue); box-shadow: none; background: transparent; }
+        .search-input::placeholder { color: #475569; font-style: italic; }
+        .input-group-text { background: transparent; border: none; border-bottom: 1px solid #334155; color: var(--accent-blue); }
+        
+        .text-dark { color: var(--text-main) !important; }
+        .text-muted { color: var(--text-muted) !important; }
+
+        .lang-btn { background: transparent; border: 1px solid rgba(56, 189, 248, 0.2); color: var(--text-muted); border-radius: 30px; padding: 6px 15px; font-size: 0.85rem; transition: 0.3s; display: flex; align-items: center; gap: 8px; }
+        .lang-btn:hover, .lang-btn.show { background: rgba(56, 189, 248, 0.1); color: var(--accent-blue); border-color: var(--accent-blue); }
+        .dropdown-item { color: var(--text-muted); font-size: 0.9rem; padding: 8px 20px; }
+        .dropdown-item:hover { background-color: var(--bg-hover); color: var(--accent-blue); }
+        .dropdown-item.active { background-color: rgba(56, 189, 248, 0.1); color: var(--accent-blue); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <!-- Particles Background -->
+    <div id="particles-js"></div>
+
+    <!-- Navbar -->
+    <nav class="top-nav">
+        <div class="container d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-3">
+                <div class="d-flex align-items-center justify-content-center" style="width: 45px; height: 45px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 10px;">
+                    <i class="fas fa-passport" style="color: var(--accent-blue)"></i>
+                </div>
+                <div>
+                    <h3 class="m-0 fw-bold serif-font" style="color: var(--text-main);">WorldPass<span style="color:var(--accent-blue)"></span></h3>
+                </div>
+            </div>
+            
+            <div class="d-flex align-items-center gap-4">
+                <div class="dropdown">
+                    <button class="btn lang-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-globe"></i> <span id="currentLangLabel">EN</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-dark-custom dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#" onclick="setLanguage('en')">🇺🇸 English</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="setLanguage('id')">🇮🇩 Indonesia</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="setLanguage('jp')">🇯🇵 日本語</a></li>
+                    </ul>
+                </div>
+                <div class="vr mx-1 bg-secondary" style="height: 30px; opacity: 0.5;"></div>
+                <div class="text-end d-none d-md-block">
+                    <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 9px; letter-spacing: 1.5px;" data-lang="logged_in">Logged in as</small>
+                    <b class="serif-font" style="color: var(--accent-blue); font-size: 1.1rem;" th:text="${user.fullname != null ? user.fullname : user.username}">User</b>
+                </div>
+                <a href="/auth/logout" class="text-secondary opacity-75 hover-opacity-100" title="Sign Out">
+                    <i class="fas fa-arrow-right-from-bracket fa-lg text-white"></i>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container main-content">
+        <div class="row g-5">
+            
+            <!-- LEFT COLUMN: CONTENT -->
+            <div class="col-lg-8">
+                <div class="d-flex flex-wrap justify-content-between align-items-end mb-5">
+                    <div>
+                        <h6 class="text-uppercase small mb-2" style="letter-spacing: 3px; color: var(--accent-gold); font-weight: 600;" data-lang="subtitle_home">Personal Anthology</h6>
+                        <h1 class="fw-bold mb-0 text-white display-5 serif-font" data-lang="title_home">Voyage Chronicles</h1>
+                    </div>
+                    
+                    <div class="mt-4 mt-md-0 d-flex flex-column align-items-end gap-3">
+                        <!-- VIEW SWITCHER -->
+                        <div class="btn-group" role="group">
+                            <button type="button" class="view-btn active" id="btnGrid" onclick="switchView('grid')" title="Grid View">
+                                <i class="fas fa-th-large"></i>
+                            </button>
+                            <button type="button" class="view-btn" id="btnTimeline" onclick="switchView('timeline')" title="Timeline View">
+                                <i class="fas fa-stream"></i>
+                            </button>
+                        </div>
+
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" id="searchInput" class="form-control search-input" data-placeholder="search_ph" placeholder="Search dark memories..." onkeyup="filterTrips()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1. GRID VIEW CONTAINER (Default) -->
+                <div class="row g-4" id="tripContainer">
+                    <div class="col-md-6 trip-item" th:each="trip : ${listPerjalanan}">
+                        <div class="card trip-card">
+                            <div class="trip-img-wrapper">
+                                <img th:if="${trip.fotoUtama != null && (trip.fotoUtama.startsWith('http') || trip.fotoUtama.startsWith('https'))}" th:src="${trip.fotoUtama}" class="trip-img" alt="Photo">
+                                <img th:if="${trip.fotoUtama != null && !trip.fotoUtama.startsWith('http') && !trip.fotoUtama.startsWith('https')}" th:src="@{'/uploads/' + ${trip.fotoUtama}}" class="trip-img" alt="Photo">
+                                <img th:if="${trip.fotoUtama == null || trip.fotoUtama.isEmpty()}" th:src="'https://source.unsplash.com/random/600x400/?night,city,' + ${trip.lokasi}" class="trip-img" alt="Default">
+                                
+                                <span class="card-category searchable-loc" th:text="${trip.lokasi}">LOCATION</span>
+                                <div class="card-actions">
+                                    <a th:href="@{'/dashboard/edit/' + ${trip.id}}" class="text-dark mx-2"><i class="fas fa-pen"></i></a>
+                                    <a th:href="@{'/dashboard/delete/' + ${trip.id}}" onclick="return confirm('Are you sure?')" class="text-danger mx-2"><i class="fas fa-trash"></i></a>
+                                </div>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="d-flex align-items-center mb-3">
+                                    <small class="text-uppercase fw-bold text-muted" style="font-size: 10px; letter-spacing: 1px;">
+                                        <i class="far fa-calendar me-1"></i> <span th:text="${trip.tanggalMulai}">DATE</span>
+                                    </small>
+                                </div>
+                                <h3 class="card-title fw-bold mb-3 searchable-title serif-font h4 text-white" th:text="${trip.judul}">Title</h3>
+                                <p class="card-text text-muted small text-truncate" th:text="${trip.deskripsi}">Description...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Empty State Grid -->
+                    <div class="col-12 text-center py-5" th:if="${#lists.isEmpty(listPerjalanan)}">
+                        <div class="py-5">
+                            <i class="far fa-compass fa-3x text-muted mb-4 opacity-25"></i>
+                            <h4 class="fw-bold text-white serif-font mb-2" data-lang="empty_title">The Void is Empty</h4>
+                            <p class="text-muted mb-4 fw-light" data-lang="empty_desc">Light up the darkness. Begin your legacy today.</p>
+                            <a href="/dashboard/add" class="btn btn-primary rounded-pill px-5 py-3 shadow" style="background: var(--accent-blue); border:none; color: #000; font-weight:bold;" data-lang="btn_create">Create Entry</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. TIMELINE VIEW CONTAINER -->
+                <div class="timeline-section" id="timelineView">
+                    <div th:each="trip, iterStat : ${listPerjalanan}" 
+                         th:class="${iterStat.odd} ? 'timeline-row left trip-item' : 'timeline-row right trip-item'">
+                        <div class="timeline-date">
+                            <i class="far fa-calendar-alt text-muted me-2"></i>
+                            <span th:text="${trip.tanggalMulai}">2023-01-01</span>
+                        </div>
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content-card shadow-lg">
+                            <div style="height: 180px; overflow: hidden; position: relative;">
+                                <img th:if="${trip.fotoUtama != null && (trip.fotoUtama.startsWith('http') || trip.fotoUtama.startsWith('https'))}" th:src="${trip.fotoUtama}" style="width:100%; height:100%; object-fit:cover;">
+                                <img th:if="${trip.fotoUtama != null && !trip.fotoUtama.startsWith('http') && !trip.fotoUtama.startsWith('https')}" th:src="@{'/uploads/' + ${trip.fotoUtama}}" style="width:100%; height:100%; object-fit:cover;">
+                                <img th:if="${trip.fotoUtama == null || trip.fotoUtama.isEmpty()}" th:src="'https://source.unsplash.com/random/600x400/?night,city,' + ${trip.lokasi}" style="width:100%; height:100%; object-fit:cover;">
+                                <span class="position-absolute bottom-0 start-0 m-2 badge bg-dark text-info border border-info" th:text="${trip.lokasi}">LOC</span>
+                            </div>
+                            <div class="p-3">
+                                <h4 class="fw-bold text-white serif-font mb-2 searchable-title" style="font-size: 1.1rem;" th:text="${trip.judul}">Title</h4>
+                                <p class="text-muted small mb-0 text-truncate" style="opacity: 0.7;" th:text="${trip.deskripsi}">Desc</p>
+                                <div class="mt-3 d-flex justify-content-end gap-2">
+                                    <a th:href="@{'/dashboard/edit/' + ${trip.id}}" class="btn btn-sm btn-outline-light rounded-circle" style="width:30px; height:30px; padding:0; display:flex; align-items:center; justify-content:center;"><i class="fas fa-pen" style="font-size:10px;"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center py-5" th:if="${#lists.isEmpty(listPerjalanan)}">
+                        <p class="text-muted">No timeline data available.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: SIDEBAR -->
+            <div class="col-lg-4">
+                <div class="sticky-top" style="top: 100px; z-index: 1;">
+                    
+                    <!-- FITUR BARU: JAM MENYATU (SEAMLESS) -->
+                    <!-- Class diganti jadi clock-seamless agar tidak kena style kotak kaca -->
+                    <div class="clock-seamless mb-4">
+                        <div class="clock-greeting" id="greetingText">GOOD EVENING</div>
+                        <div class="clock-time" id="localTime">12:00</div>
+                        <div class="clock-date" id="localDate">Monday, 12 Oct</div>
+                        
+                        <div class="world-time-strip">
+                            <div class="world-city">
+                                <span class="world-city-name">New York</span>
+                                <span class="world-city-time" id="timeNYC">--:--</span>
+                            </div>
+                            <div class="world-city">
+                                <span class="world-city-name">London</span>
+                                <span class="world-city-time" id="timeLDN">--:--</span>
+                            </div>
+                            <div class="world-city">
+                                <span class="world-city-name">Tokyo</span>
+                                <span class="world-city-time" id="timeTKY">--:--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- WEATHER WIDGET (Tetap Kaca) -->
+                    <div class="weather-card mb-4">
+                        <div class="d-flex justify-content-between align-items-start position-relative" style="z-index: 2;">
+                            <div>
+                                <div class="d-flex align-items-center gap-2 mb-1 text-white-50">
+                                    <i class="fas fa-location-dot small"></i>
+                                    <span id="weatherLocation" class="small text-uppercase fw-bold" style="letter-spacing: 1px;">LOCATING...</span>
+                                </div>
+                                <h2 class="weather-temp mb-0"><span id="weatherTemp">--</span>&deg;</h2>
+                                <p id="weatherDesc" class="mb-3 text-white fw-light" style="font-size: 1.1rem;">Loading...</p>
+                                <div class="d-flex gap-2">
+                                    <div class="weather-detail-item">
+                                        <i class="fas fa-wind text-warning"></i> <span id="weatherWind">-- km/h</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <i id="weatherIconBg" class="fas fa-cloud weather-icon-large"></i>
+                            <div class="text-end">
+                                <i id="weatherIconFg" class="fas fa-cloud fa-3x text-warning" style="filter: drop-shadow(0 0 10px rgba(255,255,255,0.4));"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BUCKET LIST WIDGET -->
+                    <div class="bucket-widget mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold text-white serif-font m-0 text-uppercase" style="letter-spacing: 2px; font-size: 0.8rem;">
+                                <i class="fas fa-list-check me-2 text-info"></i> Dream List
+                            </h6>
+                            <a href="/bucketlist" class="text-muted small text-decoration-none hover-white">Manage <i class="fas fa-arrow-right ms-1"></i></a>
+                        </div>
+                        <div class="d-flex flex-column gap-1">
+                            <div th:each="item, iterStat : ${bucketList}" th:if="${iterStat.index < 5}" 
+                                 class="d-flex align-items-center bucket-item-row">
+                                <a th:href="@{'/bucketlist/toggle/' + ${item.id}}" class="text-decoration-none me-3">
+                                    <i th:class="${item.isAchieved} ? 'fas fa-check-circle check-icon text-success' : 'far fa-circle check-icon text-muted'"></i>
+                                </a>
+                                <div class="flex-grow-1 overflow-hidden">
+                                    <span th:text="${item.destination}" 
+                                          th:style="${item.isAchieved} ? 'text-decoration: line-through; opacity: 0.5; color: var(--text-muted);' : 'color: var(--text-main);'"
+                                          class="d-block text-truncate fw-light">
+                                          Destination
+                                    </span>
+                                </div>
+                            </div>
+                            <div th:if="${#lists.isEmpty(bucketList)}" class="text-center py-4 border rounded border-dark bg-opacity-10 bg-black">
+                                <i class="fas fa-plane-slash text-muted mb-2"></i>
+                                <p class="small text-muted mb-2">No dreams added yet.</p>
+                                <a href="/bucketlist" class="btn btn-sm btn-outline-info rounded-pill px-3">Start Now</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FOUNDER CARD -->
+                    <div class="founder-card mb-4">
+                        <div class="dev-avatar"><span class="fw-bold serif-font">H</span></div>
+                        <h6 class="text-uppercase text-muted small mb-2" style="letter-spacing: 2px;" data-lang="curated_by">Curated By</h6>
+                        <h5 class="fw-bold m-0 text-white serif-font">Hans Anderson Lumbantobing</h5>
+                        <p class="small text-muted mt-1">tobingbrothers61@gmail.com</p>
+                        <div class="mt-4"><hr class="w-25 mx-auto" style="border-top: 1px solid var(--accent-blue); opacity: 0.5;"></div>
+                        <div class="d-flex justify-content-center gap-4 mt-3 text-secondary">
+                            <a href="https://www.instagram.com/hanstbg_/" target="_blank" class="text-muted hover-white"><i class="fab fa-instagram fa-lg"></i></a>
+                            <a href="#" class="text-muted hover-white"><i class="fab fa-twitter fa-lg"></i></a>
+                            <a href="#" class="text-muted hover-white"><i class="fab fa-linkedin fa-lg"></i></a>
+                        </div>
+                    </div>
+
+                    <!-- STATISTICS & CHART -->
+                    <div class="stat-card mb-4">
+                        <i class="fas fa-globe-americas icon-bg"></i>
+                        <h6 class="fw-bold text-white-50 text-uppercase mb-2" style="font-size: 10px; letter-spacing: 2px;" data-lang="stat_journals">Total Journals</h6>
+                        <h1 class="fw-bold display-3 mb-0 serif-font stat-number" th:text="${totalPerjalanan}">0</h1>
+                        <div class="mt-4 pt-3 border-top border-white border-opacity-10 d-flex align-items-center">
+                            <div class="d-flex align-items-center justify-content-center rounded-circle me-3" style="width:30px; height:30px; background: rgba(56, 189, 248, 0.2)">
+                                <i class="fas fa-map-pin text-white" style="font-size: 12px;"></i>
+                            </div>
+                            <span class="text-white-50 small">
+                                <span class="text-white fw-bold" th:text="${totalLokasi}">0</span> <span data-lang="stat_unique">Unique Destinations</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="card border-0 p-4 stat-card" style="background: rgba(15, 23, 42, 0.6) !important;">
+                        <h6 class="fw-bold text-white mb-4 serif-font" data-lang="chart_title">Top Destinations</h6>
+                        <div style="position: relative; height: 220px;">
+                            <canvas id="locationChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="app-footer">
+        <div class="container">
+            <h4 class="serif-font fw-bold mb-3 text-white">WorldPass<span style="color: var(--accent-blue)">.</span></h4>
+            <p class="small mb-0 text-muted" style="letter-spacing: 0.5px;">
+                &copy; 2025 Hans Anderson Lumbantobing. <br> 
+                <span style="opacity: 0.5" data-lang="footer_text">Designed for the modern explorer. All Rights Reserved.</span>
+            </p>
+        </div>
+    </footer>
+
+    <!-- FAB -->
+    <a href="/dashboard/add" class="btn-fab text-decoration-none" title="Compose New Entry">
+        <i class="fas fa-feather-pointed"></i>
+    </a>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    
+    <!-- MAIN SCRIPTS -->
+    <script>
+        // --- 1. CLOCK LOGIC ---
+        function updateClock() {
+            const now = new Date();
+
+            // Local Time Setup
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const timeString = `${hours}:${minutes}`;
+            
+            // Date Setup
+            const options = { weekday: 'long', day: 'numeric', month: 'short' };
+            const dateString = now.toLocaleDateString('en-US', options);
+
+            // Greeting Logic
+            let greeting = "GOOD EVENING";
+            const hour = now.getHours();
+            if (hour < 12) greeting = "GOOD MORNING";
+            else if (hour < 18) greeting = "GOOD AFTERNOON";
+
+            // Update DOM Local
+            document.getElementById('localTime').innerText = timeString;
+            document.getElementById('localDate').innerText = dateString;
+            document.getElementById('greetingText').innerText = greeting;
+
+            // World Clock Setup
+            const formatTime = (timeZone) => {
+                return new Intl.DateTimeFormat('en-US', {
+                    hour: 'numeric', minute: 'numeric', hour12: false, timeZone: timeZone
+                }).format(now);
+            };
+
+            document.getElementById('timeNYC').innerText = formatTime('America/New_York');
+            document.getElementById('timeLDN').innerText = formatTime('Europe/London');
+            document.getElementById('timeTKY').innerText = formatTime('Asia/Tokyo');
+        }
+
+        // Run clock immediately and every second
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // --- 2. EXISTING LOGIC (LANG, PARTICLES, WEATHER, ETC) ---
+        const translations = {
+            en: { logged_in: "Logged in as", subtitle_home: "Personal Anthology", title_home: "Voyage Chronicles", search_ph: "Search dark memories...", empty_title: "The Void is Empty", empty_desc: "Light up the darkness. Begin your legacy today.", btn_create: "Create Entry", curated_by: "Curated By", stat_journals: "Total Journals", stat_unique: "Unique Destinations", chart_title: "Top Destinations", footer_text: "Designed for the modern explorer. All Rights Reserved." },
+            id: { logged_in: "Masuk sebagai", subtitle_home: "Antologi Pribadi", title_home: "Kronik Perjalanan", search_ph: "Cari kenangan...", empty_title: "Hampa dan Kosong", empty_desc: "Nyalakan cahaya dalam kegelapan. Mulai tulisanmu hari ini.", btn_create: "Buat Catatan", curated_by: "Dikurasi Oleh", stat_journals: "Total Jurnal", stat_unique: "Destinasi Unik", chart_title: "Destinasi Terpopuler", footer_text: "Didesain untuk penjelajah modern. Hak Cipta Dilindungi." },
+            jp: { logged_in: "ログイン中", subtitle_home: "個人の選集", title_home: "航海の年代記", search_ph: "思い出を検索...", empty_title: "記録がありません", empty_desc: "闇を照らしましょう。今日からあなたの遺産を始めましょう。", btn_create: "エントリー作成", curated_by: "キュレーター", stat_journals: "総ジャーナル数", stat_unique: "ユニークな目的地", chart_title: "人気の目的地", footer_text: "現代の探検家のために設計されました。全著作権所有。" }
+        };
+        function setLanguage(lang) {
+            localStorage.setItem('worldpass_lang', lang);
+            document.getElementById('currentLangLabel').innerText = lang.toUpperCase();
+            const elements = document.querySelectorAll('[data-lang]');
+            elements.forEach(el => {
+                const key = el.getAttribute('data-lang');
+                if (translations[lang][key]) {
+                    el.style.opacity = 0; setTimeout(() => { el.innerText = translations[lang][key]; el.style.opacity = 1; }, 200);
+                }
+            });
+            const inputs = document.querySelectorAll('[data-placeholder]');
+            inputs.forEach(el => { const key = el.getAttribute('data-placeholder'); if (translations[lang][key]) el.placeholder = translations[lang][key]; });
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedLang = localStorage.getItem('worldpass_lang') || 'en';
+            setLanguage(savedLang);
+            const transElements = document.querySelectorAll('[data-lang]');
+            transElements.forEach(el => el.style.transition = "opacity 0.3s ease");
+        });
+
+        // Weather
+        document.addEventListener("DOMContentLoaded", () => {
+            if (navigator.geolocation) { navigator.geolocation.getCurrentPosition(fetchWeather, showError); } 
+            else { document.getElementById('weatherDesc').innerText = "Geolocation not supported"; }
+        });
+        function fetchWeather(position) {
+            const lat = position.coords.latitude; const lon = position.coords.longitude;
+            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`)
+                .then(response => response.json()).then(data => {
+                    const current = data.current_weather;
+                    updateWeatherUI(current.temperature, current.windspeed, current.weathercode);
+                    document.getElementById('weatherLocation').innerText = "Current Location";
+                }).catch(error => { console.error(error); document.getElementById('weatherDesc').innerText = "Offline"; });
+        }
+        function updateWeatherUI(temp, wind, code) {
+            document.getElementById('weatherTemp').innerText = Math.round(temp);
+            document.getElementById('weatherWind').innerText = wind + " km/h";
+            let iconClass = "fa-cloud"; let descText = "Cloudy";
+            if (code === 0) { iconClass = "fa-sun"; descText = "Clear Sky"; }
+            else if (code >= 1 && code <= 3) { iconClass = "fa-cloud-sun"; descText = "Partly Cloudy"; }
+            else if (code >= 45 && code <= 48) { iconClass = "fa-smog"; descText = "Foggy"; }
+            else if (code >= 51 && code <= 67) { iconClass = "fa-cloud-rain"; descText = "Drizzle / Rain"; }
+            else if (code >= 71 && code <= 77) { iconClass = "fa-snowflake"; descText = "Snow Fall"; }
+            else if (code >= 80 && code <= 82) { iconClass = "fa-cloud-showers-heavy"; descText = "Rain Showers"; }
+            else if (code >= 95) { iconClass = "fa-bolt"; descText = "Thunderstorm"; }
+            document.getElementById('weatherDesc').innerText = descText;
+            document.getElementById('weatherIconFg').className = `fas ${iconClass} fa-3x text-warning`;
+            document.getElementById('weatherIconBg').className = `fas ${iconClass} weather-icon-large`;
+        }
+        function showError() { fetchWeather({ coords: { latitude: -6.2088, longitude: 106.8456 } }); document.getElementById('weatherLocation').innerText = "Jakarta (Default)"; }
+
+        // Switcher & Search
+        function switchView(viewName) {
+            const grid = document.getElementById('tripContainer');
+            const timeline = document.getElementById('timelineView');
+            const btnGrid = document.getElementById('btnGrid');
+            const btnTimeline = document.getElementById('btnTimeline');
+            if (viewName === 'timeline') {
+                grid.style.display = 'none'; timeline.style.display = 'block';
+                btnTimeline.classList.add('active'); btnGrid.classList.remove('active');
+            } else {
+                grid.style.display = 'flex'; timeline.style.display = 'none';
+                btnGrid.classList.add('active'); btnTimeline.classList.remove('active');
+            }
+        }
+        function filterTrips() {
+            let input = document.getElementById('searchInput').value.toLowerCase();
+            let cards = document.getElementsByClassName('trip-item');
+            for (let i = 0; i < cards.length; i++) {
+                let title = cards[i].querySelector('.searchable-title').innerText.toLowerCase();
+                let content = cards[i].innerText.toLowerCase(); 
+                if (title.includes(input) || content.includes(input)) {
+                    cards[i].style.display = cards[i].classList.contains('col-md-6') ? "block" : "flex";
+                } else { cards[i].style.display = "none"; }
+            }
+        }
+
+        // Particles
+        particlesJS("particles-js", {
+            "particles": {
+                "number": { "value": 70, "density": { "enable": true, "value_area": 800 } },
+                "color": { "value": "#ffffff" },
+                "shape": { "type": "circle" },
+                "opacity": { "value": 0.4, "random": true, "anim": { "enable": true, "speed": 1, "opacity_min": 0.1, "sync": false } },
+                "size": { "value": 2, "random": true, "anim": { "enable": false } },
+                "line_linked": { "enable": false },
+                "move": { "enable": true, "speed": 0.6, "direction": "none", "random": true, "straight": false, "out_mode": "out", "bounce": false }
+            },
+            "interactivity": {
+                "detect_on": "canvas",
+                "events": { "onhover": { "enable": true, "mode": "bubble" }, "onclick": { "enable": true, "mode": "repulse" } },
+                "modes": { "bubble": { "distance": 200, "size": 3, "duration": 2, "opacity": 1, "speed": 3 }, "repulse": { "distance": 200, "duration": 0.4 } }
+            },
+            "retina_detect": true
+        });
+    </script>
+
+    <script th:inline="javascript">
+        var labels = [[${chartLabels}]];
+        var dataValues = [[${chartValues}]];
+        Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+        Chart.defaults.color = '#94a3b8';
+        if(labels && labels.length > 0) {
+            const ctx = document.getElementById('locationChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: dataValues,
+                        backgroundColor: ['#38bdf8', '#3b82f6', '#818cf8', '#2dd4bf', '#f472b6', '#475569'],
+                        borderColor: '#0f172a', borderWidth: 2, hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20, font: { size: 11 } } },
+                        tooltip: { backgroundColor: '#1e293b', titleColor: '#fff', bodyColor: '#fff', padding: 12, cornerRadius: 8, titleFont: { family: 'Playfair Display' } }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+    </script>
+
+</body>
+</html>

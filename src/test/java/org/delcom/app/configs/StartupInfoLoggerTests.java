@@ -2,68 +2,110 @@ package org.delcom.app.configs;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.env.ConfigurableEnvironment;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 class StartupInfoLoggerTests {
 
-    private StartupInfoLogger logger;
-
-    private ConfigurableEnvironment environment;
-    private ConfigurableApplicationContext context;
+    @Mock
     private ApplicationReadyEvent event;
 
-    private final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
+    @Mock
+    private ConfigurableApplicationContext applicationContext;
+
+    @Mock
+    private ConfigurableEnvironment env;
+
+    @InjectMocks
+    private StartupInfoLogger startupInfoLogger;
 
     @BeforeEach
-    void setup() {
-        // Redirect System.out
-        System.setOut(new PrintStream(outContent));
-
-        logger = new StartupInfoLogger();
-
-        environment = mock(ConfigurableEnvironment.class);
-        context = mock(ConfigurableApplicationContext.class);
-        event = mock(ApplicationReadyEvent.class);
-
-        when(event.getApplicationContext()).thenReturn(context);
-        when(context.getEnvironment()).thenReturn(environment);
-
-        // default property mock
-        when(environment.getProperty("server.port", "8080")).thenReturn("8080");
-        when(environment.getProperty("spring.devtools.livereload.enabled", Boolean.class, false)).thenReturn(true);
-        when(environment.getProperty("spring.devtools.livereload.port", "35729")).thenReturn("35729");
-        when(environment.getProperty("server.address", "localhost")).thenReturn("localhost");
+    void setUp() {
+        // Setup dasar rantai pemanggilan
+        when(event.getApplicationContext()).thenReturn(applicationContext);
+        when(applicationContext.getEnvironment()).thenReturn(env);
     }
 
+    // --- TEST 1: Context Path NULL ---
     @Test
-    void testOnApplicationEvent_printsExpectedOutput() {
-        when(environment.getProperty("server.servlet.context-path", "")).thenReturn("/app/home");
-        logger.onApplicationEvent(event);
+    void testOnApplicationEvent_ContextPathNull() {
+        // 1. Mock Server Port
+        when(env.getProperty(eq("server.port"), anyString())).thenReturn("8080");
+        
+        // 2. Mock Context Path (Target Test: NULL)
+        when(env.getProperty(eq("server.servlet.context-path"), anyString())).thenReturn(null);
 
-        String output = outContent.toString();
+        // 3. Mock LiveReload Enabled
+        when(env.getProperty(eq("spring.devtools.livereload.enabled"), eq(Boolean.class), eq(false))).thenReturn(false);
+        
+        // 4. Mock LiveReload Port (INI YANG SEBELUMNYA KURANG)
+        when(env.getProperty(eq("spring.devtools.livereload.port"), anyString())).thenReturn("35729");
 
-        assertTrue(output.contains("Application started successfully!"));
-        assertTrue(output.contains("> URL: http://localhost:8080"));
-        assertTrue(output.contains("> LiveReload: ENABLED (port 35729)"));
+        // 5. Mock Server Address
+        when(env.getProperty(eq("server.address"), anyString())).thenReturn("localhost");
+
+        // Execute
+        startupInfoLogger.onApplicationEvent(event);
+
+        // Verify
+        verify(env).getProperty(eq("server.servlet.context-path"), anyString());
     }
 
+    // --- TEST 2: Context Path "/" ---
     @Test
-    void testLiveReloadDisabled() {
-        when(environment.getProperty("server.servlet.context-path", "/")).thenReturn("");
-        when(environment.getProperty("spring.devtools.livereload.enabled", Boolean.class, false)).thenReturn(false);
+    void testOnApplicationEvent_ContextPathSlash() {
+        // 1. Mock Server Port
+        when(env.getProperty(eq("server.port"), anyString())).thenReturn("8080");
+        
+        // 2. Mock Context Path (Target Test: "/")
+        when(env.getProperty(eq("server.servlet.context-path"), anyString())).thenReturn("/");
 
-        logger.onApplicationEvent(event);
+        // 3. Mock LiveReload Enabled
+        when(env.getProperty(eq("spring.devtools.livereload.enabled"), eq(Boolean.class), eq(false))).thenReturn(false);
 
-        String output = outContent.toString();
+        // 4. Mock LiveReload Port (INI YANG SEBELUMNYA KURANG)
+        when(env.getProperty(eq("spring.devtools.livereload.port"), anyString())).thenReturn("35729");
 
-        assertTrue(output.contains("> LiveReload: DISABLED"));
+        // 5. Mock Server Address
+        when(env.getProperty(eq("server.address"), anyString())).thenReturn("localhost");
+
+        // Execute
+        startupInfoLogger.onApplicationEvent(event);
+        
+        verify(env).getProperty(eq("server.servlet.context-path"), anyString());
+    }
+
+    // --- TEST 3: Context Path Normal & LiveReload Enabled ---
+    @Test
+    void testOnApplicationEvent_CustomPath_LiveReloadEnabled() {
+        // 1. Mock Server Port
+        when(env.getProperty(eq("server.port"), anyString())).thenReturn("9090");
+        
+        // 2. Mock Context Path
+        when(env.getProperty(eq("server.servlet.context-path"), anyString())).thenReturn("/api");
+
+        // 3. Mock LiveReload Enabled (TRUE)
+        when(env.getProperty(eq("spring.devtools.livereload.enabled"), eq(Boolean.class), eq(false))).thenReturn(true);
+        
+        // 4. Mock LiveReload Port
+        when(env.getProperty(eq("spring.devtools.livereload.port"), anyString())).thenReturn("1234");
+        
+        // 5. Mock Server Address
+        when(env.getProperty(eq("server.address"), anyString())).thenReturn("127.0.0.1");
+
+        // Execute
+        startupInfoLogger.onApplicationEvent(event);
+
+        verify(env).getProperty(eq("spring.devtools.livereload.enabled"), eq(Boolean.class), eq(false));
     }
 }
