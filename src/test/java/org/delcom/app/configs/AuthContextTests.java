@@ -1,32 +1,60 @@
 package org.delcom.app.configs;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
+import jakarta.servlet.http.HttpSession;
 import org.delcom.app.entities.User;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
-public class AuthContextTests {
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class AuthContextTests {
+
+    @Mock
+    private HttpSession session; // Kita buat Session palsu (Mock)
+
+    @InjectMocks
+    private AuthContext authContext; // Kita masukkan session palsu ke AuthContext
+
+    @BeforeEach
+    void setUp() {
+        // Inisialisasi Mockito agar @Mock dan @InjectMocks bekerja
+        MockitoAnnotations.openMocks(this);
+    }
+
     @Test
-    @DisplayName("Membuat instance kelas AuthContext dengan benar")
     void testMembuatInstanceKelasAuthContextDenganBenar() {
-        AuthContext authContext = new AuthContext();
+        User user = new User();
+        user.setUsername("testuser");
 
-        // Menguji dengan data user tersedia
-        {
-            User user = new User("Abdullah Ubaid", "test@example.com", "123456");
-            authContext.setAuthUser(user);
+        // 1. Test setAuthUser
+        // Ini tidak akan error lagi karena session-nya sudah ada (walau palsu)
+        authContext.setAuthUser(user);
 
-            assertEquals(user, authContext.getAuthUser());
-            assertTrue(authContext.isAuthenticated());
-        }
+        // Verifikasi bahwa method setAttribute dipanggil di session
+        verify(session, times(1)).setAttribute("authUser", user);
 
-        // Menguji dengan data user kosong
-        {
-            authContext.setAuthUser(null);
-            assertTrue(!authContext.isAuthenticated());
-        }
+        // 2. Test getAuthUser
+        // Kita atur agar session palsu mengembalikan user saat diminta
+        when(session.getAttribute("authUser")).thenReturn(user);
 
+        User result = authContext.getAuthUser();
+        
+        // Assertions
+        assertNotNull(result);
+        assertEquals("testuser", result.getUsername());
+        assertTrue(authContext.isAuthenticated());
+    }
+    
+    @Test
+    void testGetAuthUserWhenNull() {
+        // Simulasi session kosong
+        when(session.getAttribute("authUser")).thenReturn(null);
+        
+        assertNull(authContext.getAuthUser());
+        assertFalse(authContext.isAuthenticated());
     }
 }

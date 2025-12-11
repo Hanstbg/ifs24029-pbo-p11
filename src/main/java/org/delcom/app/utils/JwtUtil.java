@@ -1,15 +1,17 @@
 package org.delcom.app.utils;
 
-import io.jsonwebtoken.*;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+
+import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.UUID;
 
-import javax.crypto.SecretKey;
-
 public class JwtUtil {
 
-    // Ganti dengan secret key yang lebih aman dan simpan di tempat yang aman
+    // Secret Key punya kamu (Jangan diubah agar cocok dengan token yang mungkin sudah tergenerate)
     private static final String SECRET_KEY = "NghR8fQn5O6V2z7VwpvQkDELCOMXoCYQbQZjx3xWUpPfw5i9L8RrGg==";
     private static final long EXPIRATION_TIME = 1000 * 60 * 60 * 2; // 2 jam
     private static final SecretKey key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
@@ -18,6 +20,7 @@ public class JwtUtil {
         return key;
     }
 
+    // 1. GENERATE TOKEN
     public static String generateToken(UUID userId) {
         return Jwts.builder()
                 .subject(userId.toString())
@@ -27,6 +30,13 @@ public class JwtUtil {
                 .compact();
     }
 
+    // 2. GET USER ID FROM TOKEN (INI YANG DIBUTUHKAN AUTH INTERCEPTOR)
+    // Saya buat method ini untuk menjembatani panggilan dari AuthInterceptor
+    public static UUID getUserIdFromToken(String token) {
+        return extractUserId(token);
+    }
+
+    // Method asli punya kamu (tetap dipertahankan)
     public static UUID extractUserId(String token) {
         try {
             Claims claims = Jwts.parser()
@@ -41,12 +51,7 @@ public class JwtUtil {
         }
     }
 
-    /**
-     * Validasi token
-     * 
-     * @param token         JWT token
-     * @param ignoreExpired jika true maka token expired tetap dianggap valid
-     */
+    // 3. VALIDASI TOKEN
     public static boolean validateToken(String token, boolean ignoreExpired) {
         try {
             Jwts.parser()

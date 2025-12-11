@@ -1,161 +1,149 @@
 package org.delcom.app.interceptors;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.when;
-
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.Date;
-import java.util.UUID;
-
-import org.delcom.app.configs.AuthContext;
-import org.delcom.app.entities.AuthToken;
-import org.delcom.app.entities.User;
-import org.delcom.app.services.AuthTokenService;
-import org.delcom.app.services.UserService;
-import org.delcom.app.utils.JwtUtil;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-
-import io.jsonwebtoken.Jwts;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.delcom.app.configs.AuthContext;
+import org.delcom.app.entities.User;
+import org.delcom.app.services.UserService;
+import org.delcom.app.utils.JwtUtil;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-public class AuthInterceptorTests {
+import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class AuthInterceptorTests {
+
+    @Mock
+    private AuthContext authContext;
+
+    @Mock
+    private UserService userService;
+
+    @Mock
+    private HttpServletRequest request;
+
+    @Mock
+    private HttpServletResponse response;
+
+    @InjectMocks
+    private AuthInterceptor authInterceptor;
+
+    // --- 1. Session Ada (Langsung Masuk) ---
     @Test
-    @DisplayName("Pengujian AuthInterceptor dengan berbagai skenario")
-    public void testVariousAuthInterceptor() throws Exception {
+    void testPreHandle_SessionExists() throws Exception {
+        when(authContext.getAuthUser()).thenReturn(new User());
+
+        boolean result = authInterceptor.preHandle(request, response, new Object());
+
+        assertTrue(result);
+        verifyNoInteractions(userService); // Tidak perlu cek cookie/db
+    }
+
+    // --- 2. Session Kosong, Cookie Kosong (Redirect Login) ---
+    @Test
+    void testPreHandle_NoSession_NoCookies() throws Exception {
+        when(authContext.getAuthUser()).thenReturn(null);
+        when(request.getCookies()).thenReturn(null);
+
+        boolean result = authInterceptor.preHandle(request, response, new Object());
+
+        assertFalse(result);
+        verify(response).sendRedirect("/auth/login");
+    }
+
+    // --- 3. Session Kosong, Cookie Ada tapi BUKAN AUTH_TOKEN (Cover Loop) ---
+    @Test
+    void testPreHandle_CookieNameMismatch() throws Exception {
+        when(authContext.getAuthUser()).thenReturn(null);
+        
+        // Cookie namanya beda
+        Cookie[] cookies = { new Cookie("JSESSIONID", "12345") };
+        when(request.getCookies()).thenReturn(cookies);
+
+        boolean result = authInterceptor.preHandle(request, response, new Object());
+
+        assertFalse(result); // Token tetap null
+        verify(response).sendRedirect("/auth/login");
+    }
+
+    // --- 4. Sukses Login via Cookie (Token Valid) ---
+    @Test
+    void testPreHandle_ValidCookie_UserFound() throws Exception {
+        when(authContext.getAuthUser()).thenReturn(null);
+
+        Cookie[] cookies = { new Cookie("AUTH_TOKEN", "valid_token") };
+        when(request.getCookies()).thenReturn(cookies);
 
         UUID userId = UUID.randomUUID();
-        String bearerToken = JwtUtil.generateToken(userId);
-        AuthToken authToken = new AuthToken(userId, bearerToken);
+        User mockUser = new User();
 
-        User user = new User("testuser", "testuser@example.com");
-        user.setId(userId);
+        // MOCK STATIC JwtUtil untuk return UUID sukses
+        try (MockedStatic<JwtUtil> jwtUtilMock = mockStatic(JwtUtil.class)) {
+            jwtUtilMock.when(() -> JwtUtil.getUserIdFromToken("valid_token"))
+                       .thenReturn(userId);
 
-        // Mock AuthTokenService
-        AuthTokenService authTokenService = Mockito.mock(AuthTokenService.class);
+            when(userService.getUserById(userId)).thenReturn(mockUser);
 
-        // Mock UserService
-        UserService userService = Mockito.mock(UserService.class);
+            boolean result = authInterceptor.preHandle(request, response, new Object());
 
-        // Mock HttpServletRequest
-        HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
-
-        // Mock HttpServletResponse
-        HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
-        Mockito.when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
-
-        // Instance AuthInterceptor dengan service palsu
-        AuthInterceptor authInterceptor = new AuthInterceptor();
-        authInterceptor.authTokenService = authTokenService;
-        authInterceptor.userService = userService;
-        authInterceptor.authContext = new AuthContext();
-
-        // Menguji method preHandle yang berhasil
-        {
-            // Mocking behavior dari authTokenService
-            when(authTokenService.findUserToken(Mockito.any(UUID.class), Mockito.anyString()))
-                    .thenReturn(authToken);
-
-            // Mocking behavior dari userService
-            when(userService.getUserById(userId)).thenReturn(user);
-
-            // Mocking behavior dari request
-            when(request.getRequestURI()).thenReturn("/api/users/me");
-            when(request.getHeader("Authorization")).thenReturn("Bearer " + bearerToken);
-
-            boolean isPublic = authInterceptor.preHandle(request, response, null);
-            assertTrue(isPublic);
+            assertTrue(result);
+            verify(authContext).setAuthUser(mockUser); // Pastikan user dikembalikan ke session
         }
+    }
 
-        // Menguji method preHandle yang berhasil dengan path public
-        {
-            // Mocking behavior dari request
-            when(request.getRequestURI()).thenReturn("/api/auth");
-            boolean isPublic = authInterceptor.preHandle(request, response, null);
-            assertTrue(isPublic);
+    // --- 5. Validasi Token Sukses, Tapi User Tidak Ada di DB ---
+    @Test
+    void testPreHandle_ValidCookie_UserNotFound() throws Exception {
+        when(authContext.getAuthUser()).thenReturn(null);
+        Cookie[] cookies = { new Cookie("AUTH_TOKEN", "valid_token") };
+        when(request.getCookies()).thenReturn(cookies);
 
-            when(request.getRequestURI()).thenReturn("/error");
-            isPublic = authInterceptor.preHandle(request, response, null);
-            assertTrue(isPublic);
+        UUID userId = UUID.randomUUID();
+
+        try (MockedStatic<JwtUtil> jwtUtilMock = mockStatic(JwtUtil.class)) {
+            jwtUtilMock.when(() -> JwtUtil.getUserIdFromToken("valid_token"))
+                       .thenReturn(userId);
+
+            when(userService.getUserById(userId)).thenReturn(null); // User di DB null
+
+            boolean result = authInterceptor.preHandle(request, response, new Object());
+
+            assertFalse(result);
+            verify(response).sendRedirect("/auth/login");
         }
+    }
 
-        // Menguji method preHandle yang tidak valid dengan token null
-        {
-            // Mocking behavior dari request
-            when(request.getRequestURI()).thenReturn("/api/users/me");
+    // --- 6. EXCEPTION HANDLING (Cover Catch Block yang Merah) ---
+    @Test
+    void testPreHandle_Exception_CatchBlock() throws Exception {
+        when(authContext.getAuthUser()).thenReturn(null);
 
-            // Header Authorization null
-            when(request.getHeader("Authorization")).thenReturn(null);
-            boolean isAuth = authInterceptor.preHandle(request, response, null);
-            assertEquals(false, isAuth);
+        Cookie[] cookies = { new Cookie("AUTH_TOKEN", "invalid_token") };
+        when(request.getCookies()).thenReturn(cookies);
 
-            // Header Authorization kosong
-            when(request.getHeader("Authorization")).thenReturn("");
-            isAuth = authInterceptor.preHandle(request, response, null);
-            assertEquals(false, isAuth);
+        // MOCK STATIC JwtUtil untuk MELEMPAR EXCEPTION
+        // Ini akan memaksa kode masuk ke blok catch (Exception e)
+        try (MockedStatic<JwtUtil> jwtUtilMock = mockStatic(JwtUtil.class)) {
+            jwtUtilMock.when(() -> JwtUtil.getUserIdFromToken(anyString()))
+                       .thenThrow(new RuntimeException("Token Expired or Invalid"));
 
-            // Header Authorization empty
-            when(request.getHeader("Authorization")).thenReturn("Bearer ");
-            isAuth = authInterceptor.preHandle(request, response, null);
-            assertEquals(false, isAuth);
+            boolean result = authInterceptor.preHandle(request, response, new Object());
 
-            // Header Authorization tidak valid
-            when(request.getHeader("Authorization")).thenReturn("Bearer invalid_token");
-            isAuth = authInterceptor.preHandle(request, response, null);
-            assertEquals(false, isAuth);
-        }
-
-        // Menguji method preHandle dengan extract user id gagal
-        {
-            String invalidToken = Jwts.builder()
-                    .subject(userId.toString() + "invalid")
-                    .issuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60 * 3)) // 3 jam yang lalu
-                    .expiration(new Date(System.currentTimeMillis() - 1000 * 60 * 60 * 1)) // expired 1 jam yang lalu
-                    .signWith(JwtUtil.getKey()) // Perlu menambahkan method getKey() di JwtUtil
-                    .compact();
-
-            // Mocking behavior dari request
-            when(request.getRequestURI()).thenReturn("/api/users/me");
-            when(request.getHeader("Authorization")).thenReturn("Bearer " + invalidToken);
-
-            boolean isAuth = authInterceptor.preHandle(request, response, null);
-            assertEquals(false, isAuth);
-        }
-
-        // Menguji method preHandle yang tidak valid dengan token tidak ditemukan
-        {
-            // Mocking behavior dari request
-            when(request.getRequestURI()).thenReturn("/api/users/me");
-            when(request.getHeader("Authorization")).thenReturn("Bearer " + bearerToken);
-
-            // Token tidak ditemukan di database
-            when(authTokenService.findUserToken(Mockito.any(UUID.class), Mockito.anyString()))
-                    .thenReturn(null);
-
-            boolean isPublic = authInterceptor.preHandle(request, response, null);
-            assertEquals(false, isPublic);
-        }
-
-        // Menguji method preHandle yang tidak valid dengan user tidak ditemukan
-        {
-            // Mocking behavior dari request
-            when(request.getRequestURI()).thenReturn("/api/users/me");
-            when(request.getHeader("Authorization")).thenReturn("Bearer " + bearerToken);
-
-            // Mocking behavior dari authTokenService
-            when(authTokenService.findUserToken(Mockito.any(UUID.class), Mockito.anyString()))
-                    .thenReturn(authToken);
-
-            // User tidak ditemukan
-            when(userService.getUserById(userId)).thenReturn(null);
-
-            boolean isPublic = authInterceptor.preHandle(request, response, null);
-            assertEquals(false, isPublic);
+            // Verifikasi
+            // 1. Masuk catch -> print error -> loop selesai
+            // 2. Lanjut ke baris response.sendRedirect
+            assertFalse(result);
+            verify(response).sendRedirect("/auth/login");
         }
     }
 }

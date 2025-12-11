@@ -11,33 +11,32 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-        @Bean
-        SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-                http
-                                .exceptionHandling(ex -> ex
-                                                .authenticationEntryPoint((req, res, e) -> {
-                                                        res.sendRedirect("/auth/login");
-                                                }))
-                                .authorizeHttpRequests(auth -> auth
-                                                .requestMatchers("/auth/**", "/assets/**", "/api/**",
-                                                                "/css/**", "/js/**")
-                                                .permitAll()
-                                                .anyRequest().authenticated())
 
-                                .formLogin(form -> form.disable())
-                                .logout(logout -> logout
-                                                .logoutSuccessUrl("/auth/login")
-                                                .permitAll())
-                                .rememberMe(remember -> remember
-                                                .key("uniqueAndSecret")
-                                                .tokenValiditySeconds(86400) // 24 jam
-                                );
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
-                return http.build();
-        }
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            // Matikan CSRF agar form POST dari HTML kita bisa masuk
+            .csrf(csrf -> csrf.disable())
+            
+            .authorizeHttpRequests(auth -> auth
+                // Izinkan folder static (css/js/gambar)
+                .requestMatchers("/css/**", "/js/**", "/images/**", "/uploads/**").permitAll()
+                // Izinkan Auth Controller
+                .requestMatchers("/auth/**").permitAll()
+                // PENTING: Izinkan semua request lain (Dashboard dll).
+                // Kenapa? Karena pengecekan login dilakukan manual di DashboardController 
+                // menggunakan AuthContext, bukan menggunakan SecurityContext Spring.
+                .anyRequest().permitAll()
+            )
+            // Matikan form login bawaan Spring Security agar AuthController kita yang bekerja
+            .formLogin(form -> form.disable())
+            .logout(logout -> logout.disable());
 
-        @Bean
-        public PasswordEncoder passwordEncoder() {
-                return new BCryptPasswordEncoder();
-        }
+        return http.build();
+    }
 }

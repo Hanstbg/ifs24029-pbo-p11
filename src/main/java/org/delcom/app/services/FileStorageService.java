@@ -5,54 +5,58 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.util.UUID;
 
 @Service
 public class FileStorageService {
+    
     @Value("${app.upload.dir:./uploads}")
     protected String uploadDir;
 
-    public String storeFile(MultipartFile file, UUID todoId) throws IOException {
-        // Buat directory jika belum ada
+    // --- 1. Method Utama Upload (Yang sudah kita perbaiki) ---
+    public String storeFile(MultipartFile file, UUID id) throws IOException {
         Path uploadPath = Paths.get(uploadDir);
+        
         if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
         }
 
-        // Generate unique filename
         String originalFilename = file.getOriginalFilename();
         String fileExtension = "";
         if (originalFilename != null && originalFilename.contains(".")) {
             fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
         }
 
-        String filename = "cover_" + todoId.toString() + fileExtension;
+        String filename = "img_" + id.toString() + "_" + System.currentTimeMillis() + fileExtension;
 
-        // Simpan file
         Path filePath = uploadPath.resolve(filename);
         Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
         return filename;
     }
 
+    // --- 2. Method Tambahan (YANG HILANG & BIKIN ERROR TEST) ---
+    
+    // Untuk menghapus file
     public boolean deleteFile(String filename) {
         try {
             Path filePath = Paths.get(uploadDir).resolve(filename);
             return Files.deleteIfExists(filePath);
         } catch (IOException e) {
+            e.printStackTrace();
             return false;
         }
     }
 
+    // Untuk mengambil path file
     public Path loadFile(String filename) {
         return Paths.get(uploadDir).resolve(filename);
     }
 
+    // Untuk cek apakah file ada
     public boolean fileExists(String filename) {
-        return Files.exists(loadFile(filename));
+        Path path = loadFile(filename);
+        return Files.exists(path);
     }
 }

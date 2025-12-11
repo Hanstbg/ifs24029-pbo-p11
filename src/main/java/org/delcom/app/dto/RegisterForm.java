@@ -1,46 +1,21 @@
 package org.delcom.app.dto;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public class RegisterForm {
 
-    @NotBlank(message = "Nama harus diisi")
-    private String name;
+    @NotBlank(message = "Username tidak boleh kosong")
+    private String username;
 
-    @NotBlank(message = "Email harus diisi")
-    @Email(message = "Format email tidak valid")
-    private String email;
-
-    @NotBlank(message = "Kata sandi harus diisi")
+    @NotBlank(message = "Password tidak boleh kosong")
+    @Size(min = 6, message = "Password minimal 6 karakter")
     private String password;
 
-    // Constructor
-    public RegisterForm() {
-    }
+    // Getter & Setter (Wajib ada)
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
 
-    // Getters and Setters
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 }

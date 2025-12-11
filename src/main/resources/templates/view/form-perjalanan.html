@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title th:text="${isEdit ? 'Edit Jurnal - WorldPass' : 'Jurnal Baru - WorldPass'}">Form</title>
+    
+    <!-- Bootstrap 5 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* THEME: Midnight Azure */
+            --bg-deep: #020617;
+            --bg-card: #0f172a;
+            --bg-input: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-gold: #fbbf24;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            background-image: radial-gradient(circle at 50% 0%, #1e293b 0%, #020617 60%);
+            background-attachment: fixed;
+            background-size: cover;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 0;
+        }
+
+        h1, h2, h3, h4, h5 { font-family: 'Playfair Display', serif; }
+
+        /* Card Container */
+        .journal-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            box-shadow: 0 0 40px rgba(56, 189, 248, 0.15); 
+            width: 100%;
+            max-width: 750px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+        }
+
+        .journal-card::before {
+            content: '';
+            position: absolute; top: 0; left: 0; width: 100%; height: 4px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-gold));
+            box-shadow: 0 0 10px var(--accent-blue);
+        }
+
+        .card-header-custom {
+            padding: 30px 40px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .card-body-custom { padding: 40px; }
+
+        /* Form Controls */
+        .form-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--accent-blue);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .form-control {
+            background-color: var(--bg-deep);
+            border: 1px solid #334155;
+            color: var(--text-main);
+            padding: 14px 18px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            background-color: var(--bg-input);
+            border-color: var(--accent-blue);
+            color: white;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+        }
+        .form-control::placeholder { color: #475569; font-style: italic; }
+        .input-group-text {
+            background-color: var(--bg-input);
+            border: 1px solid #334155;
+            color: var(--text-muted);
+        }
+
+        /* Input Title */
+        .input-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            border: none;
+            border-bottom: 2px solid #334155;
+            border-radius: 0;
+            background: transparent;
+            padding-left: 0;
+            padding-bottom: 10px;
+            color: white;
+        }
+        .input-title:focus {
+            box-shadow: none;
+            border-color: var(--accent-gold);
+            background: transparent;
+        }
+
+        /* Media Box */
+        .media-box {
+            background: rgba(2, 6, 23, 0.5);
+            border: 2px dashed #334155;
+            border-radius: 12px;
+            padding: 25px;
+            transition: 0.3s;
+        }
+        .media-box:hover { 
+            border-color: var(--accent-blue); 
+            background: rgba(56, 189, 248, 0.05); 
+        }
+
+        /* Buttons */
+        .btn-save {
+            background: linear-gradient(135deg, var(--accent-blue), #3b82f6);
+            color: var(--bg-deep);
+            border: none;
+            padding: 14px;
+            font-weight: 700;
+            border-radius: 50px;
+            width: 100%;
+            letter-spacing: 0.5px;
+            transition: 0.3s;
+            box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3);
+        }
+        .btn-save:hover {
+            background: white;
+            color: var(--accent-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 0 25px rgba(56, 189, 248, 0.6);
+        }
+
+        .btn-close-custom {
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+        .btn-close-custom:hover { 
+            color: var(--accent-blue); 
+            transform: rotate(90deg) scale(1.1); 
+            text-shadow: 0 0 10px var(--accent-blue);
+        }
+
+        .preview-img {
+            height: 120px; width: auto; border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            border: 2px solid var(--accent-gold);
+        }
+
+        .text-dark { color: white !important; }
+        .text-muted { color: var(--text-muted) !important; }
+        .text-warning { color: var(--accent-gold) !important; }
+
+        /* LANGUAGE DROPDOWN STYLING (MATCHING THEME) */
+        .lang-btn {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            color: var(--accent-blue);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            transition: 0.3s;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .lang-btn:hover, .lang-btn.show {
+            background: var(--accent-blue);
+            color: var(--bg-deep);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+        }
+        .dropdown-menu-dark-custom {
+            background-color: var(--bg-card);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 1050;
+        }
+        .dropdown-item { color: var(--text-muted); font-size: 0.9rem; padding: 8px 20px; }
+        .dropdown-item:hover { background-color: var(--bg-input); color: var(--accent-blue); }
+    </style>
+</head>
+<!-- Menyimpan status Edit/Add untuk logika JS -->
+<body th:data-is-edit="${isEdit}">
+
+<div class="journal-card">
+    
+    <!-- Header -->
+    <div class="card-header-custom">
+        <div>
+            <h6 class="text-uppercase text-muted small mb-1" style="letter-spacing: 2px; color: var(--accent-gold) !important;" data-lang="header_subtitle">WorldPass Journal</h6>
+            <!-- Judul akan diisi otomatis oleh JS berdasarkan bahasa dan status edit -->
+            <h2 class="mb-0 text-white" id="dynamicTitle">Title</h2>
+        </div>
+        
+        <div class="d-flex align-items-center gap-3">
+            <!-- LANGUAGE DROPDOWN -->
+            <div class="dropdown">
+                <button class="btn lang-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-globe"></i> <span id="currentLangLabel">EN</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-dark-custom dropdown-menu-end">
+                    <li><a class="dropdown-item" href="#" onclick="setLanguage('en')">🇺🇸 English</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="setLanguage('id')">🇮🇩 Indonesia</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="setLanguage('jp')">🇯🇵 日本語</a></li>
+                </ul>
+            </div>
+
+            <a href="/dashboard" class="btn-close-custom" title="Close"><i class="fas fa-times"></i></a>
+        </div>
+    </div>
+
+    <div class="card-body-custom">
+        <form th:action="@{/dashboard/save}" th:object="${perjalanan}" method="post" enctype="multipart/form-data">
+            
+            <input type="hidden" th:field="*{id}">
+            <input type="hidden" th:field="*{fotoUtama}">
+
+            <!-- 1. JUDUL -->
+            <div class="mb-5">
+                <input type="text" class="form-control input-title" th:field="*{judul}" data-placeholder="ph_title" placeholder="Title of your journey..." required>
+            </div>
+
+            <!-- 2. LOKASI & TANGGAL -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-12">
+                    <label class="form-label"><i class="fas fa-map-marker-alt me-2 text-warning"></i><span data-lang="label_destination">Destination</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text border-end-0"><i class="fas fa-globe-asia text-white"></i></span>
+                        <input type="text" class="form-control border-start-0 ps-0" th:field="*{lokasi}" data-placeholder="ph_destination" placeholder="e.g. Kyoto, Japan" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label"><i class="far fa-calendar-alt me-2"></i><span data-lang="label_start">Start Date</span></label>
+                    <input type="date" class="form-control" th:field="*{tanggalMulai}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label"><i class="far fa-calendar-check me-2"></i><span data-lang="label_end">End Date</span></label>
+                    <input type="date" class="form-control" th:field="*{tanggalSelesai}">
+                </div>
+            </div>
+
+            <!-- 3. MEDIA UPLOAD -->
+            <div class="mb-4">
+                <label class="form-label mb-2"><i class="fas fa-camera me-2 text-white"></i><span data-lang="label_image">Visual Memory</span></label>
+                <div class="media-box">
+                    <div class="row align-items-center">
+                        <!-- Kolom Input -->
+                        <div class="col-md-8">
+                            <!-- Opsi Upload -->
+                            <div class="mb-3">
+                                <label class="small text-muted mb-1" data-lang="label_upload">Upload File (JPG/PNG)</label>
+                                <input type="file" name="imageFile" class="form-control form-control-sm" accept="image/*" style="background: var(--bg-deep);">
+                            </div>
+                            <!-- Opsi URL -->
+                            <div class="mb-0">
+                                <label class="small text-muted mb-1" data-lang="label_url">Or Paste Image URL</label>
+                                <input type="text" name="urlInput" class="form-control form-control-sm" placeholder="https://..." th:value="${perjalanan.fotoUtama != null && perjalanan.fotoUtama.startsWith('http') ? perjalanan.fotoUtama : ''}" style="background: var(--bg-deep);">
+                            </div>
+                        </div>
+                        
+                        <!-- Kolom Preview -->
+                        <div class="col-md-4 text-center border-start border-secondary">
+                            <div th:if="${perjalanan.fotoUtama != null && !perjalanan.fotoUtama.isEmpty()}">
+                                <div th:if="${perjalanan.fotoUtama.startsWith('http')}">
+                                    <img th:src="${perjalanan.fotoUtama}" class="preview-img">
+                                </div>
+                                <div th:if="${!perjalanan.fotoUtama.startsWith('http')}">
+                                    <img th:src="@{'/uploads/' + ${perjalanan.fotoUtama}}" class="preview-img">
+                                </div>
+                                <div class="mt-2"><span class="badge bg-dark text-warning border border-warning" data-lang="label_active">Active</span></div>
+                            </div>
+                            <div th:if="${perjalanan.fotoUtama == null || perjalanan.fotoUtama.isEmpty()}" class="text-muted opacity-50">
+                                <i class="fas fa-image fa-3x mb-2"></i>
+                                <p class="small m-0" data-lang="label_no_image">No Image</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. CATATAN -->
+            <div class="mb-5">
+                <label class="form-label"><i class="fas fa-pen-nib me-2"></i><span data-lang="label_desc">Journal Entry</span></label>
+                <textarea class="form-control" th:field="*{deskripsi}" rows="6" data-placeholder="ph_desc" placeholder="Write about the unforgettable moments..." style="line-height: 1.8;"></textarea>
+            </div>
+
+            <!-- 5. TOMBOL -->
+            <button type="submit" class="btn btn-save shadow-sm">
+                <i class="fas fa-check me-2"></i> <span data-lang="btn_save">Save to Chronicles</span>
+            </button>
+            <div class="text-center mt-3">
+                <a href="/dashboard" class="text-muted small text-decoration-none hover-white" data-lang="link_cancel">Cancel</a>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- TRANSLATION SCRIPT -->
+<script>
+    // Dictionary Bahasa untuk Halaman Form
+    const translations = {
+        en: {
+            header_subtitle: "WorldPass Journal",
+            title_new: "New Adventure",
+            title_edit: "Edit Entry",
+            ph_title: "Title of your journey...",
+            label_destination: "Destination",
+            ph_destination: "e.g. Kyoto, Japan",
+            label_start: "Start Date",
+            label_end: "End Date",
+            label_image: "Visual Memory",
+            label_upload: "Upload File (JPG/PNG)",
+            label_url: "Or Paste Image URL",
+            label_active: "Active",
+            label_no_image: "No Image",
+            label_desc: "Journal Entry",
+            ph_desc: "Write about the unforgettable moments, the flavors, the people...",
+            btn_save: "Save to Chronicles",
+            link_cancel: "Cancel"
+        },
+        id: {
+            header_subtitle: "Jurnal WorldPass",
+            title_new: "Petualangan Baru",
+            title_edit: "Edit Catatan",
+            ph_title: "Judul perjalananmu...",
+            label_destination: "Destinasi",
+            ph_destination: "contoh: Bali, Indonesia",
+            label_start: "Tanggal Mulai",
+            label_end: "Tanggal Selesai",
+            label_image: "Memori Visual",
+            label_upload: "Unggah Berkas (JPG/PNG)",
+            label_url: "Atau Tempel URL Gambar",
+            label_active: "Aktif",
+            label_no_image: "Tanpa Gambar",
+            label_desc: "Isi Jurnal",
+            ph_desc: "Ceritakan momen tak terlupakan, rasa makanan, dan orang-orang yang ditemui...",
+            btn_save: "Simpan ke Kronik",
+            link_cancel: "Batalkan"
+        },
+        jp: {
+            header_subtitle: "WorldPass ジャーナル",
+            title_new: "新しい冒険",
+            title_edit: "エントリーの編集",
+            ph_title: "旅のタイトル...",
+            label_destination: "目的地",
+            ph_destination: "例：京都、日本",
+            label_start: "開始日",
+            label_end: "終了日",
+            label_image: "視覚的な記憶",
+            label_upload: "ファイルをアップロード (JPG/PNG)",
+            label_url: "または画像URLを貼り付け",
+            label_active: "アクティブ",
+            label_no_image: "画像なし",
+            label_desc: "ジャーナルエントリー",
+            ph_desc: "忘れられない瞬間、味、出会った人々について書いてください...",
+            btn_save: "年代記に保存",
+            link_cancel: "キャンセル"
+        }
+    };
+
+    function setLanguage(lang) {
+        // 1. Simpan Pilihan
+        localStorage.setItem('worldpass_lang', lang);
+        document.getElementById('currentLangLabel').innerText = lang.toUpperCase();
+
+        // 2. Cek apakah ini mode Edit atau Baru (dari atribut body)
+        const isEdit = document.body.getAttribute('data-is-edit') === 'true';
+        const titleKey = isEdit ? 'title_edit' : 'title_new';
+        
+        // 3. Update Judul Halaman
+        const titleEl = document.getElementById('dynamicTitle');
+        if(titleEl) titleEl.innerText = translations[lang][titleKey];
+
+        // 4. Update Teks Biasa (Span, Label, Button)
+        const elements = document.querySelectorAll('[data-lang]');
+        elements.forEach(el => {
+            const key = el.getAttribute('data-lang');
+            if (translations[lang][key]) {
+                el.innerText = translations[lang][key];
+            }
+        });
+
+        // 5. Update Placeholder Input
+        const inputs = document.querySelectorAll('[data-placeholder]');
+        inputs.forEach(el => {
+            const key = el.getAttribute('data-placeholder');
+            if (translations[lang][key]) {
+                el.placeholder = translations[lang][key];
+            }
+        });
+    }
+
+    // Init saat Load
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedLang = localStorage.getItem('worldpass_lang') || 'en';
+        setLanguage(savedLang);
+    });
+</script>
+
+</body>
+</html>
